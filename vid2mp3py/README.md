@@ -4,5 +4,7 @@
 * kubectl
 * minikube
 * k9s
+* MySQL
+* MongoDB
 * RabbitMQ
 * Python3
