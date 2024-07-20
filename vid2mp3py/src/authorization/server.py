@@ -40,12 +40,12 @@ def login():
 		if auth.username != email or auth.password != password:
 			return 'Credentials were invalid', 401
 		else:
-			return create_jwt(auth.username, os.environ.get('JWT_SECRET'), True)
+			return createJWT(auth.username, os.environ.get('JWT_SECRET'), True)
 	else:
 		return "Credentials were invalid", 401
 
 
-def create_jwt(username, jwt_secret, is_admin):
+def createJWT(username, jwt_secret, is_admin):
 	return jwt.encode(
 		{
 			'username': username,
