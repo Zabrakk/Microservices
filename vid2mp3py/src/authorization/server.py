@@ -26,7 +26,7 @@ def login():
 	cursor = my_sql.connection.cursor()
 	# Query the DB for the password of the user
 	res = cursor.execute(
-		f'SELECT email, password FROM user WHERE email={auth.username}'
+		"SELECT email, password FROM user WHERE email=%s", (auth.username,)
 	)
 	# Res is an array
 	print(res)
