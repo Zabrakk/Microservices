@@ -1,16 +1,14 @@
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: mysql
 spec:
-  replicas: 1
+  serviceName: "not-applicable"
   selector:
     matchLabels:
       app: mysql
-  strategy:
+  updateStrategy:
     type: RollingUpdate
-    rollingUpdate:
-      maxSurge: 3
   template:
     metadata:
       labels:
@@ -20,9 +18,18 @@ spec:
         - name: mysql
           image: zbrk/py-mysql
           ports:
-            - containerPort: 3306
+            - name: sql
+              protocol: TCP
+              containerPort: 3306
           envFrom:
             - configMapRef:
                 name: mysql-configmap
             - secretRef:
                 name: mysql-secret
+          volumeMounts:
+            - mountPath: "/var/lib/mysql"
+              name: mysql-volume
+      volumes:
+        - name: mysql-volume
+          persistentVolumeClaim:
+              claimName: mysql-pvc
