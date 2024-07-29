@@ -9,7 +9,7 @@ from convert import to_mp3
 
 
 def main():
-	client = MongoClient('host.minikube.internal', 27017)
+	client = MongoClient(os.getenv("MONGODB_HOST"), int(os.getenv("MONGODB_PORT")))
 	db_videos = client.videos
 	db_mp3s = client.mp3s
 	fs_videos = gridfs.GridFS(db_videos)

@@ -3,5 +3,7 @@ kind: ConfigMap
 metadata:
   name: converter-configmap
 data:
+  MONGODB_HOST: mongodb
+  MONGODB_PORT: "27017"
   MP3_QUEUE: "mp3"
   VIDEO_QUEUE: "video"
