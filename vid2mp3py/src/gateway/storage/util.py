@@ -11,8 +11,9 @@ def upload(f, fs: GridFS, channel, access: Dict):
 	"""
 	try:
 		fid = fs.put(f)
-	except:
+	except Exception as e:
 		# Upload failed
+		print(e)
 		return 'Internal server error', 500
 
 	message = {
@@ -31,7 +32,8 @@ def upload(f, fs: GridFS, channel, access: Dict):
 				delivery_mode=pika.spec.PERSISTENT_DELIVERY_MODE # Make the queue retain its messages even if the pod is restarted
 			)
 		)
-	except:
+	except Exception as e:
 		# Queueing failed, delete the file from MongoDB
+		print(e)
 		fs.delete(fid)
 		return 'Internal server error', 500
