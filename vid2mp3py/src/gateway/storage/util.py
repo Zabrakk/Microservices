@@ -13,7 +13,7 @@ def upload(f, fs: GridFS, channel, access: Dict):
 		fid = fs.put(f)
 	except Exception as e:
 		# Upload failed
-		print(e)
+		print(f'Upload failed with the following error:\n{e}')
 		return 'Internal server error', 500
 
 	message = {
@@ -34,6 +34,6 @@ def upload(f, fs: GridFS, channel, access: Dict):
 		)
 	except Exception as e:
 		# Queueing failed, delete the file from MongoDB
-		print(e)
+		print(f'Queuing failed with the following error:\n{e}')
 		fs.delete(fid)
 		return 'Internal server error', 500
