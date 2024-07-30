@@ -54,7 +54,21 @@ def upload():
 
 @server.route('/download', methods=['GET'])
 def download():
-	pass
+	access, err = validate.token(request)
+	if not access:
+		return err
+
+	if access['admin']:
+		fid_string = request.args.get('fid')
+		if not fid_string:
+			return 'URL parameter "fid" is required', 400
+		try:
+			out = fs_mp3s.get(ObjectId(fid_string))
+			return send_file(out, download_name=f'{fid_string}.mp3')
+		except Exception as e:
+			print(f'An error occured while trying to send file to user:\n{e}')
+			return 'Internal server error', 500
+	return 'Not authorized', 401
 
 
 if __name__ == '__main__':
