@@ -4,3 +4,4 @@ metadata:
   name: notification-configmap
 data:
   MP3_QUEUE: "mp3"
+  PYTHONUNBUFFERED: "1"
