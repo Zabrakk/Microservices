@@ -2,18 +2,21 @@ import os
 import json
 import pika
 import gridfs
-from flask import Flask, request
+from flask import Flask, request, send_file
 from flask_pymongo import PyMongo
+from bson.objectid import ObjectId
 
 from auth import validate
 from auth_svc import access
 from storage import util
 
 server = Flask(__name__)
-server.config['MONGO_URI'] = f'mongodb://{os.getenv("MONGODB_HOST")}:{os.getenv("MONGODB_PORT")}/videos'
 
-mongo = PyMongo(server)
-fs = gridfs.GridFS(mongo.db)
+mongo_videos = PyMongo(server, uri=f'mongodb://{os.getenv("MONGODB_HOST")}:{os.getenv("MONGODB_PORT")}/videos')
+mongo_mp3s = PyMongo(server, uri=f'mongodb://{os.getenv("MONGODB_HOST")}:{os.getenv("MONGODB_PORT")}/mp3s')
+
+fs_videos = gridfs.GridFS(mongo_videos.db)
+fs_mp3s = gridfs.GridFS(mongo_mp3s.db)
 
 connection = pika.BlockingConnection(pika.ConnectionParameters(
 	host="rabbitmq"
@@ -41,7 +44,7 @@ def upload():
 			return 'Exactly one file required', 400
 
 		for _, f in request.files.items():
-			err = util.upload(f, fs, channel, access)
+			err = util.upload(f, fs_videos, channel, access)
 			if err:
 				return err
 		return 'Success!', 200
