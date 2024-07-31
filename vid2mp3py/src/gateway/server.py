@@ -5,6 +5,7 @@ import gridfs
 from flask import Flask, request, send_file
 from flask_pymongo import PyMongo
 from bson.objectid import ObjectId
+from bson.errors import InvalidId
 
 from auth import validate
 from auth_svc import access
@@ -67,6 +68,8 @@ def download():
 			return send_file(out, download_name=f'{fid_string}.mp3')
 		except gridfs.NoFile:
 			return f'No file found with fid: {fid_string}', 404
+		except InvalidId:
+			return f'fid format is incorrect', 400
 		except Exception as e:
 			print(f'An error occured while trying to send file to user:\n{e}')
 			return 'Internal server error', 500
