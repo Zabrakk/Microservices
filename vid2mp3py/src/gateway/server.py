@@ -65,6 +65,8 @@ def download():
 		try:
 			out = fs_mp3s.get(ObjectId(fid_string))
 			return send_file(out, download_name=f'{fid_string}.mp3')
+		except gridfs.NoFile:
+			return f'No file found with fid: {fid_string}', 404
 		except Exception as e:
 			print(f'An error occured while trying to send file to user:\n{e}')
 			return 'Internal server error', 500
