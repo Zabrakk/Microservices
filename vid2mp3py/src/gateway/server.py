@@ -19,10 +19,11 @@ mongo_mp3s = PyMongo(server, uri=f'mongodb://{os.getenv("MONGODB_HOST")}:{os.get
 fs_videos = gridfs.GridFS(mongo_videos.db)
 fs_mp3s = gridfs.GridFS(mongo_mp3s.db)
 
-connection = pika.BlockingConnection(pika.ConnectionParameters(
-	host="rabbitmq"
-))
-channel = connection.channel()
+
+def create_connection():
+	return pika.BlockingConnection(pika.ConnectionParameters(
+		host="rabbitmq"
+	))
 
 
 @server.route("/login", methods=['POST'])
@@ -44,8 +45,10 @@ def upload():
 		if len(request.files) != 1:
 			return 'Exactly one file required', 400
 
+		connection = create_connection()
 		for _, f in request.files.items():
-			err = util.upload(f, fs_videos, channel, access)
+			err = util.upload(f, fs_videos, connection.channel(), access)
+			connection.close()
 			if err:
 				return err
 		return 'Success!', 200
