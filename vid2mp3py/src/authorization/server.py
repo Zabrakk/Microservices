@@ -18,7 +18,6 @@ server.config['MYSQL_PASSWORD'] = os.environ.get('MYSQL_PASSWORD')
 def login():
 	# Ensure that the received request includes the authorization header
 	auth = request.authorization
-	print(auth)
 	if not auth:
 		return "Credentials are missing", 401
 
@@ -29,13 +28,10 @@ def login():
 		"SELECT email, password FROM user WHERE email=%s", (auth.username,)
 	)
 	# Res is an array
-	print(res)
 	if res > 0:
 		user_row = cursor.fetchone()
 		email = user_row[0]
 		password = user_row[1]
-
-		print(user_row)
 
 		if auth.username != email or auth.password != password:
 			return 'Credentials were invalid', 401
@@ -74,6 +70,24 @@ def validate():
 		return "Not authorized", 403
 
 	return decoded, 200
+
+
+@server.route('/register', methods=['POST'])
+def register():
+	username, password = request.headers['Username'], request.headers['Password']
+
+	# Create DB cursor
+	cursor = my_sql.connection.cursor()
+	# Attempt to add the new users details to the DB
+	try:
+		cursor.execute(
+			"INSERT INTO user (email, password) VALUES (%s, %s)", (username, password, )
+		)
+		my_sql.connection.commit()
+		return "pass", 201
+	except Exception as e:
+		print(f'Error occured while trying to register user:\n{e}')
+		return "fail", 500
 
 
 if __name__ == '__main__':
