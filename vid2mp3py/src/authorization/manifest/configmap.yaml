@@ -7,3 +7,4 @@ data:
   MYSQL_USER: Auth
   MYSQL_DB: auth
   MYSQL_PORT: "3306"
+  PYTHONUNBUFFERED: "1"
