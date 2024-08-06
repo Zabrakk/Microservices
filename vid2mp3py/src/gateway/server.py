@@ -7,8 +7,7 @@ from flask_pymongo import PyMongo
 from bson.objectid import ObjectId
 from bson.errors import InvalidId
 
-from auth import validate
-from auth_svc import access
+from auth_service import access, validation
 from storage import util
 
 server = Flask(__name__)
@@ -26,7 +25,7 @@ def create_connection():
 	))
 
 
-@server.route("/login", methods=['POST'])
+@server.route('/login', methods=['POST'])
 def login():
 	token, err = access.login(request)
 	if not err:
@@ -35,9 +34,18 @@ def login():
 		return err
 
 
+@server.route('/register', methods=['POST'])
+def register():
+	token, err = access.register_user(request)
+	if not err:
+		return 201, token
+	else:
+		return err
+
+
 @server.route('/upload', methods=['POST'])
 def upload():
-	access, err = validate.token(request)
+	access, err = validation.validate_token(request)
 	if not access:
 		return err
 
@@ -58,7 +66,7 @@ def upload():
 
 @server.route('/download', methods=['GET'])
 def download():
-	access, err = validate.token(request)
+	access, err = validation.validate_token(request)
 	if not access:
 		return err
 

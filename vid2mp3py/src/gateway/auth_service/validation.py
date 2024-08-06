@@ -4,7 +4,7 @@ import requests
 from typing import Tuple
 
 
-def token(request) -> Tuple[bool, Tuple[str, int]]:
+def validate_token(request) -> Tuple[bool, Tuple[str, int]]:
 	"""
 	Sends a POST request to the authorization microservice's /validate route
 	and checks if requester's token is valid.
