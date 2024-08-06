@@ -1,4 +1,4 @@
-# Vid2mp3Py
+# Vid2Mp3Py
 
 This project is a video file to mp3 (audio) converter, created with a microservice architecture.
 It contains four different services, these being the Gateway, Authorization, Converter and Notification services.
