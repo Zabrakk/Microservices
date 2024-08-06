@@ -86,6 +86,7 @@ def register():
 		my_sql.connection.commit()
 		return "pass", 201
 	except Exception as e:
+		# TODO: Proper error handling
 		print(f'Error occured while trying to register user:\n{e}')
 		return "fail", 500
 
