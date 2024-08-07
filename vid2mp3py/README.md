@@ -24,3 +24,28 @@ I used the following tools when creating and testing this project:
 
 ## Architecture
 ![service architecture](img/Architecture.png)
+
+
+## Testing with Postman
+I tested the project's functionalities by sending HTTP requests with Postman. Here's some images of the setup:
+
+Registering a new user:
+
+![registering](img/register.png)
+
+
+Performing login:
+
+![login](img/login.png)
+
+
+Uploading a video file:
+
+![upload1](img/upload1.png)
+
+![upload2](img/upload2.png)
+
+
+Downloading the audio:
+
+![download](img/download.png)
