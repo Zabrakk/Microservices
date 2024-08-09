@@ -37,7 +37,8 @@ def login():
 		if auth.username != email or auth.password != password:
 			return 'Credentials were invalid', 401
 		else:
-			return createJWT(auth.username, os.environ.get('JWT_SECRET'), True)
+			is_admin = email == os.getenv('MYSQL_ADMIN_USER') and password == os.getenv('MYSQL_ADMIN_PASSWORD')
+			return createJWT(auth.username, os.environ.get('JWT_SECRET'), is_admin)
 	else:
 		return "Credentials were invalid", 401
 
@@ -85,7 +86,7 @@ def register():
 			"INSERT INTO user (email, password) VALUES (%s, %s)", (username, password, )
 		)
 		my_sql.connection.commit()
-		return "pass", 201
+		return createJWT(username, os.getenv('JWT_SECRET'), False)
 	except MySQLdb.IntegrityError as e:
 		print(f'Integrity error occured:\n{e}')
 		if e.args[0] == 1062:
