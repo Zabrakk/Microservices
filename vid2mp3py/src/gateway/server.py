@@ -38,7 +38,7 @@ def login():
 def register():
 	token, err = access.register_user(request)
 	if not err:
-		return 201, token
+		return token
 	else:
 		return err
 
