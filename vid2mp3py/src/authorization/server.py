@@ -1,6 +1,7 @@
 import os
 import jwt # JSON web token
 import datetime
+import MySQLdb
 from flask import Flask, request
 from flask_mysqldb import MySQL
 
@@ -85,10 +86,14 @@ def register():
 		)
 		my_sql.connection.commit()
 		return "pass", 201
+	except MySQLdb.IntegrityError as e:
+		print(f'Integrity error occured:\n{e}')
+		if e.args[0] == 1062:
+			return f'A user has already been registered with the username {username}', 409
+		return 'Internal server error', 500
 	except Exception as e:
-		# TODO: Proper error handling
 		print(f'Error occured while trying to register user:\n{e}')
-		return "fail", 500
+		return 'Internal server error', 500
 
 
 if __name__ == '__main__':
