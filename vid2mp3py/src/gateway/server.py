@@ -30,8 +30,7 @@ def login():
 	token, err = access.login(request)
 	if not err:
 		return token
-	else:
-		return err
+	return err
 
 
 @server.route('/register', methods=['POST'])
@@ -39,8 +38,7 @@ def register():
 	token, err = access.register_user(request)
 	if not err:
 		return token
-	else:
-		return err
+	return err
 
 
 @server.route('/upload', methods=['POST'])

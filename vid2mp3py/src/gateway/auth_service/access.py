@@ -23,8 +23,7 @@ def login(request: Request) -> Tuple[str, Tuple[str, int]]:
 
 	if response.status_code == 200:
 		return response.text, None
-	else:
-		return None, (response.text, response.status_code)
+	return None, (response.text, response.status_code)
 
 
 def register_user(request: Request) -> Tuple[str, Tuple[str, int]]:
@@ -35,9 +34,9 @@ def register_user(request: Request) -> Tuple[str, Tuple[str, int]]:
 	returns: Token, error (msg, status code)
 	"""
 	if 'Username' not in request.headers:
-		return 400, 'Username missing from headers'
+		return None, ('Username missing from headers', 400)
 	if 'Password' not in request.headers:
-		return 400, 'Password missing from headers'
+		return None, ('Password missing from headers', 400)
 
 	response = requests.post(
 		f'http://{os.environ.get("AUTH_SVC_ADDRESS")}/register',
@@ -46,5 +45,4 @@ def register_user(request: Request) -> Tuple[str, Tuple[str, int]]:
 
 	if response.status_code == 200:
 		return response.text, None
-	else:
-		return None, (response.text, response.status_code)
+	return None, (response.text, response.status_code)

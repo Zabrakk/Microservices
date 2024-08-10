@@ -25,5 +25,4 @@ def validate_token(request) -> Tuple[bool, Tuple[str, int]]:
 
 	if response.status_code == 200:
 		return json.loads(response.text), None
-	else:
-		return None, (response.text, response.status_code)
+	return None, (response.text, response.status_code)
