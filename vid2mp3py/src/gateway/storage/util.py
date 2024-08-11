@@ -2,12 +2,22 @@ import json
 import pika
 import pika.spec
 from gridfs import GridFS
-from typing import Dict
+from typing import Dict, Tuple
 
 
-def upload(f, fs: GridFS, channel, access: Dict):
+def upload(f, fs: GridFS, channel, access: Dict) -> Tuple[str, int]:
 	"""
-	Uploads a given file to the MongoDB using GridFS.
+	Uploads a given video file to the MongoDB utilizing GridFS. If the upload succeeds a message containing the
+	video's information is published to RabbitMQ's video queue. If anything fails, an internal server error is returned.
+
+	Parameters
+	- f: Video file
+	- fs: GridFS instance for videos
+	- channel: RabbitMQ channe
+	- JWT
+
+	Returns
+	- (str, int): Message, status code
 	"""
 	try:
 		fid = fs.put(f)
