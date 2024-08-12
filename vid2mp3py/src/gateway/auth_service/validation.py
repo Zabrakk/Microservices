@@ -1,15 +1,20 @@
 import os
 import json
 import requests
+from flask import Request
 from typing import Tuple
 
 
-def validate_token(request) -> Tuple[bool, Tuple[str, int]]:
+def validate_token(request: Request) -> Tuple[bool, Tuple[str, int]]:
 	"""
 	Sends a POST request to the authorization microservice's /validate route
 	and checks if requester's token is valid.
 
-	returns: JWT, error (msg, status code)
+	Parameters
+	- request: Flask Request object
+
+	Returns
+	- JWT, error (msg, status code)
 	"""
 	if not 'Authorization' in request.headers:
 		return None, ('Missing credentials', 401)

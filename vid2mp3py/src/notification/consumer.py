@@ -2,9 +2,14 @@ import os
 import sys
 import json
 import pika
+from typing import Dict
 
 
 def main():
+	"""
+	This function consumes messages from RabbitMQ's mp3 queue. When messages are obtained from the queue,
+	this function prints out a notification that include's a username and an mp3 file id.
+	"""
 	# RabbitMQ connection
 	connection = pika.BlockingConnection(pika.ConnectionParameters(host='rabbitmq'))
 	channel = connection.channel()
@@ -25,7 +30,17 @@ def main():
 	channel.start_consuming()
 
 
-def notify(msg):
+def notify(msg: Dict) -> Exception | None:
+	"""
+	This function prints out a notification that include's a username and an mp3 file id.
+	The notification is created based on messages obtained from the RabbitMQ mp3 queue.
+
+	Parameters
+	- msg: RabbitMQ message body
+
+	Return
+	- e: Any exception that might have occured during notifying
+	"""
 	try:
 		msg = json.loads(msg)
 		print(f'Attention user {msg["username"]}! Your mp3 is ready for download.\nfid: {msg["mp3_fid"]}')

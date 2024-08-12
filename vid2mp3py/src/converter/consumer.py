@@ -9,6 +9,11 @@ from convert import to_mp3
 
 
 def main():
+	"""
+	This function consumes messages from the RabbitMQ videos queue. When a new message is received,
+	the corresponding video file is obtained from MongoDB. The file is then converted into an mp3
+	and stores it into MongoDB. Finally a message is sent to the mp3 queue informing of the files creation.
+	"""
 	client = MongoClient(os.getenv("MONGODB_HOST"), int(os.getenv("MONGODB_PORT")))
 	db_videos = client.videos
 	db_mp3s = client.mp3s

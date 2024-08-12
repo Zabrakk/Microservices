@@ -3,11 +3,26 @@ import json
 import pika
 import tempfile
 import moviepy.editor
+from typing import Dict
+import gridfs
 from bson.objectid import ObjectId
 import pika.spec
 
 
-def start(message, fs_videos, fs_mp3s, channel):
+def start(message: Dict, fs_videos: gridfs.GridFS, fs_mp3s: gridfs.GridFS, channel) -> str | None:
+	"""
+	This function converts a given video file into an mp3. The file is then stored to MongoDB and
+	a notification is sent to RabbitMQ mp3 queue informing consumers about the files creation.
+
+	Parameters
+	- message: Message from RabbitMQ's video queue
+	- fs_videos: GridFS object for videos in MongoDB
+	- fs_mp3s: GridFS object for mp3s in MongoDB
+	- channel: RabbitMQ channel
+
+	Returns
+	- str or None: Error message if error occured
+	"""
 	message = json.loads(message)
 
 	# Emptry temp file

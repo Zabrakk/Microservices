@@ -9,7 +9,11 @@ def login(request: Request) -> Tuple[str, Tuple[str, int]]:
 	Sends a POST request to the authorization microservice's /login route
 	and checks if the requester is authorized to access provided services.
 
-	returns: Token, error (msg, status code)
+	Parameters
+	- request: Flask Request object
+
+	Returns
+	- Token, error (msg, status code)
 	"""
 	auth = request.authorization
 	if not auth:
@@ -31,7 +35,11 @@ def register_user(request: Request) -> Tuple[str, Tuple[str, int]]:
 	Sends a POST request to the authorization microservice's /register route
 	and which performs the registration of a new user.
 
-	returns: Token, error (msg, status code)
+	Parameters
+	- request: Flask Request object
+
+	Returns
+	- Token, error (msg, status code)
 	"""
 	if 'Username' not in request.headers:
 		return None, ('Username missing from headers', 400)
