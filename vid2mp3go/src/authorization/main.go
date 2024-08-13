@@ -10,9 +10,6 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
-// TODO: Get port from environment variable
-const portNum string = "8080"
-
 type MySQLConf struct {
 	Host		string
 	DB			string
@@ -91,9 +88,11 @@ func main() {
 	http.HandleFunc("/register", Register)
 	http.HandleFunc("/validate", Validate)
 
-	log.Println("Authorization service running on port", portNum)
+	servicePort := os.Getenv("SERVICE_PORT")
 
-	err = http.ListenAndServe(":"+portNum, nil)
+	log.Println("Authorization service running on port", servicePort)
+
+	err = http.ListenAndServe(":"+servicePort, nil)
 	if err != nil {
 		log.Fatal(err.Error())
 	}
