@@ -1,13 +1,37 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 )
 
 // TODO: Get port from environment variable
 const portNum string = "8080"
+
+type MySQLConf struct {
+	Host		string
+	DB			string
+	Port		string
+	User		string
+	Password	string
+}
+
+func NewMySQLConf() MySQLConf {
+	return MySQLConf{
+		Host: os.Getenv("MYSQL_HOST"),
+		DB: os.Getenv("MYSQL_DB"),
+		Port: os.Getenv("MYSQL_PORT"),
+		User: os.Getenv("MYSQL_USER"),
+		Password: os.Getenv("MYSQL_PASSWORD"),
+	}
+}
+
+func (c MySQLConf) GetDataSourceName() string {
+	return  c.User + ":" + c.Password + "@tcp(" + c.Host + ":" + c.Port + ")"
+}
 
 // Used to create JWT tokens for users.
 func CreateJWT() {
@@ -52,6 +76,14 @@ func Validate(w http.ResponseWriter, r *http.Request) {
 func main() {
 	log.Println("Authorization service starting...")
 
+	// Connect to MySQL
+	mySqlConf := NewMySQLConf()
+	db, err := sql.Open("mysql", mySqlConf.GetDataSourceName())
+	if err != nil {
+		log.Panic(err.Error())
+	}
+	defer db.Close()
+
 	// Register handler functions to routes
 	http.HandleFunc("/login", Login)
 	http.HandleFunc("/register", Register)
@@ -59,8 +91,8 @@ func main() {
 
 	log.Println("Authorization service running on port", portNum)
 
-	err := http.ListenAndServe(":"+portNum, nil)
+	err = http.ListenAndServe(":"+portNum, nil)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal(err.Error())
 	}
 }
