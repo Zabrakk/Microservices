@@ -32,7 +32,7 @@ func NewMySQLConf() MySQLConf {
 }
 
 func (c MySQLConf) GetDataSourceName() string {
-	return  c.User + ":" + c.Password + "@tcp(" + c.Host + ":" + c.Port + ")"
+	return  c.User + ":" + c.Password + "@tcp(" + c.Host + ":" + c.Port + "/" + c.DB + ")"
 }
 
 // Used to create JWT tokens for users.
