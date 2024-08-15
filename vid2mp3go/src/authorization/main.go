@@ -114,8 +114,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var r_user string
-		var r_password string
+		var r_user, r_password string
 		if err := rows.Scan(&r_user, &r_password); err != nil {
 			LogAndSendInternalServerError("Error occured while trying to fetch user from DB", err, w)
 			return
@@ -142,18 +141,17 @@ func Login(w http.ResponseWriter, r *http.Request) {
 func Register(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		SendMethodNotAllowed(w)
-	} else {
-		fmt.Fprintf(w, "Registered")
+		return
 	}
+	fmt.Fprintf(w, "Registered")
 }
 
 // TODO
 func Validate(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		SendMethodNotAllowed(w)
-	} else {
-		fmt.Fprintf(w, "Validated")
 	}
+	fmt.Fprintf(w, "Validated")
 }
 
 func main() {
