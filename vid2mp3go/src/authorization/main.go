@@ -6,9 +6,14 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
+
+	jwt "github.com/golang-jwt/jwt/v5"
 
 	_ "github.com/go-sql-driver/mysql"
 )
+
+var db *sql.DB
 
 type MySQLConf struct {
 	Host		string
@@ -33,8 +38,17 @@ func (c MySQLConf) GetDataSourceName() string {
 }
 
 // Used to create JWT tokens for users.
-func CreateJWT() {
-
+func CreateJWT(username string) (tokenString string, err error) {
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256,
+		jwt.MapClaims{
+			"username": username,
+			"exp": time.Now().Add(time.Hour * 24).Unix(),
+		})
+	tokenString, err = token.SignedString([]byte(os.Getenv("JWT_SECRET")))
+	if err != nil {
+		return "", err
+	}
+	return tokenString, nil
 }
 
 // This method is used to send a HTTP response with status code 405.
@@ -44,14 +58,72 @@ func SendMethodNotAllowed(w http.ResponseWriter) {
 	fmt.Fprintf(w, "The method is not allowed for the requested URL.")
 }
 
+func SendInvalidCredentials(w http.ResponseWriter) {
+	w.WriteHeader(http.StatusUnauthorized)
+	fmt.Fprintf(w, "Credentials were invalid")
+}
+
+func GetBasicAuth(w http.ResponseWriter, r *http.Request) (username string, password string, ok bool) {
+	username, password, ok = r.BasicAuth(); if !ok {
+		log.Println("BasicAuth() was not ok")
+		SendInvalidCredentials(w)
+		return "", "", ok
+	}
+	if len(username) == 0 || len(password) == 0 {
+		log.Println("Username or password was empty")
+		SendInvalidCredentials(w)
+		return "", "", false
+	}
+	return username, password, ok
+}
+
 // TODO
 func Login(w http.ResponseWriter, r *http.Request) {
 	log.Println("Login request received with method", r.Method)
 	if r.Method != "POST" {
 		SendMethodNotAllowed(w)
-	} else {
-		fmt.Fprintf(w, "Logged in")
+		return
 	}
+	username, password, ok := GetBasicAuth(w, r); if !ok { return }
+	log.Printf("Log in request received for user %s with password %s\n", username, password)
+	rows, err := db.Query(`SELECT email, password FROM user WHERE email=?`, username)
+	if err != nil {
+		log.Println("Error occured while trying to fetch user from DB")
+		log.Println(err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "Internal server error")
+		return
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var r_user string
+		var r_password string
+		if err := rows.Scan(&r_user, &r_password); err != nil {
+			log.Println("Error occured while trying to fetch user from DB")
+			log.Println(err.Error())
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, "Internal server error")
+			return
+		}
+		log.Printf("Read %s %s from db\n", r_user, r_password)
+
+		if username != r_user || password != r_password {
+			SendInvalidCredentials(w)
+			return
+		} else {
+			tokenString, err := CreateJWT(r_user)
+			if err != nil {
+				log.Println("Error occured while trying tocreate JWT")
+				log.Println(err.Error())
+				w.WriteHeader(http.StatusInternalServerError)
+				fmt.Fprintf(w, "Internal server error")
+				return
+			}
+			fmt.Fprintf(w, "%s", tokenString)
+			return
+		}
+	}
+	SendInvalidCredentials(w)
 }
 
 // TODO
@@ -74,10 +146,11 @@ func Validate(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	log.Println("Authorization service starting...")
+	var err error
 
 	// Connect to MySQL
 	mySqlConf := NewMySQLConf()
-	db, err := sql.Open("mysql", mySqlConf.GetDataSourceName())
+	db, err = sql.Open("mysql", mySqlConf.GetDataSourceName())
 	if err != nil {
 		log.Panic(err.Error())
 	}
