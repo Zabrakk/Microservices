@@ -65,6 +65,15 @@ func LogAndSendInternalServerError(msg string, err error, w http.ResponseWriter)
 	fmt.Fprintf(w, "Internal server error")
 }
 
+// This function is used to send a HTTP response with status code 400.
+// Use it, e.g. when required headers are missing from a request.
+// The msg parameter will be the text sent back to the user.
+func SendBadRequest(msg string, w http.ResponseWriter) {
+	log.Println(msg)
+	w.WriteHeader(http.StatusBadRequest)
+	fmt.Fprintf(w, "%s", msg)
+}
+
 // Gets the BasicAuth credentials present in a given http.Request.
 // If there are no credentials present, an error is returned.
 // If everything is ok, the username and password are returned.
@@ -139,10 +148,22 @@ func Login(w http.ResponseWriter, r *http.Request) {
 
 // TODO
 func Register(w http.ResponseWriter, r *http.Request) {
+	log.Println("Register request received with method", r.Method)
 	if r.Method != "POST" {
 		SendMethodNotAllowed(w)
 		return
 	}
+	username, password := r.Header.Get("Username"), r.Header.Get("Password")
+	if username == "" || password == "" {
+		SendBadRequest("Username or Password were missing", w)
+		return
+	}
+	result, err := db.Exec("INSTERT INTO user (email, password) VALUES (?, ?)", username, password)
+	if err != nil {
+		LogAndSendInternalServerError("Something went wrong trying to rgister user to DB", err, w)
+		return
+	}
+	log.Println(result.LastInsertId())
 	fmt.Fprintf(w, "Registered")
 }
 
