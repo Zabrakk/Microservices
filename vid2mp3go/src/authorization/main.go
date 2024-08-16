@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	MySQLConf "microservices/authorization/mysql_conf"
 	SendStatus "microservices/authorization/send_status"
 	"net/http"
 	"os"
@@ -15,30 +16,6 @@ import (
 )
 
 var db *sql.DB
-
-type MySQLConf struct {
-	Host		string
-	DB			string
-	Port		string
-	User		string
-	Password	string
-}
-
-func NewMySQLConf() MySQLConf {
-	return MySQLConf{
-		Host: os.Getenv("MYSQL_HOST"),
-		DB: os.Getenv("MYSQL_DB"),
-		Port: os.Getenv("MYSQL_PORT"),
-		User: os.Getenv("MYSQL_USER"),
-		Password: os.Getenv("MYSQL_PASSWORD"),
-	}
-}
-
-// Creates a string that can be used as the dataSourceName for db.Open()
-// based on the MySQLConf's field values
-func (c MySQLConf) GetDataSourceName() (dataSourceName string) {
-	return  c.User + ":" + c.Password + "@tcp(" + c.Host + ":" + c.Port + ")/" + c.DB
-}
 
 // Gets the BasicAuth credentials present in a given http.Request.
 // If there are no credentials present, an error is returned.
@@ -150,7 +127,7 @@ func main() {
 	var err error
 
 	// Connect to MySQL
-	mySqlConf := NewMySQLConf()
+	mySqlConf := MySQLConf.NewMySQLConf()
 	db, err = sql.Open("mysql", mySqlConf.GetDataSourceName())
 	if err != nil {
 		log.Panic(err.Error())
