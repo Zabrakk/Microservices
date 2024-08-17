@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 	MySQLConf "microservices/authorization/mysql_conf"
@@ -33,6 +34,10 @@ func GetBasicAuth(r *http.Request) (username string, password string, ok bool) {
 // Returns JWT string, expiring in one day, for a given user.
 // If something goes wrong, an error is returned.
 func CreateJWT(username string) (tokenString string, err error) {
+	secret := os.Getenv("JWT_SECRET")
+	if secret == "" {
+		return "", errors.New("env variable JWT_SECRET was empty")
+	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256,
 		jwt.MapClaims{
 			"username": username,
