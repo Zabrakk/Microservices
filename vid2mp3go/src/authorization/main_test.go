@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -169,8 +170,15 @@ func TestLogin(t *testing.T) {
 			handler := http.HandlerFunc(Login)
 			handler.ServeHTTP(resp, req)
 
-			if status := resp.Code; status != tt.expectedCode {
-				t.Fatal("Status was incorrect", status)
+			if resp.Code != tt.expectedCode {
+				t.Fatal("Status was incorrect", resp.Code)
+			}
+			if resp.Code == 200 {
+				bodyBytes, err := io.ReadAll(resp.Body)
+				if err != nil { t.Fatalf("Error while reading resp body:\n%s", err.Error()) }
+				if len(string(bodyBytes)) == 0 {
+					t.Fatal("Did not receive JWT")
+				}
 			}
 		})
 	}
