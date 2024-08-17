@@ -183,3 +183,75 @@ func TestLogin(t *testing.T) {
 		})
 	}
 }
+
+func TestRegister(t *testing.T) {
+	var mock sqlmock.Sqlmock
+	var err error
+	tests := []struct {
+		name			string
+		method			string
+		expectedCode	int
+		credentials		[]string
+		jwtSecret		string
+	}{
+		/*
+		{
+			name: "Successful registration",
+			method: "POST",
+			expectedCode: 200,
+			credentials: []string{"test_user", "test_password"}
+			jwtSecret: "test_secret",
+		},
+		*/
+		{
+			name: "Incorrect HTTP request method",
+			method: "GET",
+			expectedCode: 405,
+			credentials: []string{"test_user", "test_password"},
+			jwtSecret: "test_secret",
+		},
+		{
+			name: "Credentials missing from headers",
+			method: "POST",
+			expectedCode: 400,
+			credentials: []string{},
+			jwtSecret: "test_secret",
+		},
+		{
+			name: "Insert into DB fails",
+			method: "POST",
+			expectedCode: 500,
+			credentials: []string{"test_user", "test_password"},
+			jwtSecret: "test_secret",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			os.Setenv("JWT_SECRET", tt.jwtSecret)
+			db, mock, err = sqlmock.New()
+			if err != nil {
+				t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
+			}
+			defer db.Close()
+
+			req, err := http.NewRequest(tt.method, "/register", nil)
+			if err != nil { t.Fatalf("NewRequest creation failed:\n%s", err.Error()) }
+			if len(tt.credentials) > 0 {
+				req.Header.Add("Username", tt.credentials[0])
+				req.Header.Add("Password", tt.credentials[1])
+			}
+
+			if tt.name == "Insert into DB fails" {
+				mock.ExpectExec("INSTERT INTO user (email, password) VALUES (?, ?)").WillReturnError(errors.New("duplicate entry in DB"))
+			}
+
+			resp := httptest.NewRecorder()
+			handler := http.HandlerFunc(Register)
+			handler.ServeHTTP(resp, req)
+
+			if status := resp.Code; status != tt.expectedCode {
+				t.Fatal("Status was incorrect", status)
+			}
+		})
+	}
+}
