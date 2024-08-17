@@ -18,15 +18,13 @@ import (
 var db *sql.DB
 
 // Gets the BasicAuth credentials present in a given http.Request.
-// If there are no credentials present, an error is returned.
+// If there are no credentials present, "ok" will be false.
 // If everything is ok, the username and password are returned.
-func GetBasicAuth(w http.ResponseWriter, r *http.Request) (username string, password string, ok bool) {
+func GetBasicAuth(r *http.Request) (username string, password string, ok bool) {
 	username, password, ok = r.BasicAuth(); if !ok {
-		SendStatus.InvalidCredentials(w)
-		return "", "", ok
+		return "", "", false
 	}
 	if len(username) == 0 || len(password) == 0 {
-		SendStatus.InvalidCredentials(w)
 		return "", "", false
 	}
 	return username, password, ok
@@ -57,7 +55,10 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		SendStatus.MethodNotAllowed(w)
 		return
 	}
-	username, password, ok := GetBasicAuth(w, r); if !ok { return }
+	username, password, ok := GetBasicAuth(r); if !ok {
+		SendStatus.InvalidCredentials(w)
+		return
+	}
 	log.Printf("Log in request received for user %s with password %s\n", username, password)
 	rows, err := db.Query(`SELECT email, password FROM user WHERE email=?`, username)
 	if err != nil {
