@@ -2,9 +2,13 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"testing"
+
+	"github.com/DATA-DOG/go-sqlmock"
 )
 
 func TestGetBasicAuthAllCorrect(t *testing.T) {
@@ -70,3 +74,104 @@ func TestCreateJWTSecretNotSet(t *testing.T) {
 	}
 }
 
+func TestLogin(t *testing.T) {
+	var mock sqlmock.Sqlmock
+	var err error
+	tests := []struct {
+		name			string
+		method			string
+		expectedCode	int
+		credentials		[]string
+		row				[]string
+		jwtSecret		string
+	}{
+		{
+			name: "Successful login",
+			method: "POST",
+			expectedCode: 200,
+			credentials: []string{"test_user", "test_password"},
+			row: []string{"test_user", "test_password"},
+			jwtSecret: "test_secret",
+		},
+		{
+			name: "Incorrect HTTP request method",
+			method: "GET",
+			expectedCode: 405,
+			credentials: []string{"test_user", "test_password"},
+			row: []string{"test_user", "test_password"},
+			jwtSecret: "test_secret",
+		},
+		{
+			name: "Credentials missing",
+			method: "POST",
+			expectedCode: 401,
+			credentials: []string{"test_user", ""},
+			row: []string{"test_user", "test_password"},
+			jwtSecret: "test_secret",
+		},
+		{
+			name: "Username is incorrect",
+			method: "POST",
+			expectedCode: 401,
+			credentials: []string{"test_user", "test_password"},
+			row: []string{},
+			jwtSecret: "test_secret",
+		},
+		{
+			name: "Password is incorrect",
+			method: "POST",
+			expectedCode: 401,
+			credentials: []string{"test_user", "test_password"},
+			row: []string{"test_user", "different_password"},
+			jwtSecret: "test_secret",
+		},
+		{
+			name: "JWT creation fails",
+			method: "POST",
+			expectedCode: 500,
+			credentials: []string{"test_user", "test_password"},
+			row: []string{"test_user", "test_password"},
+			jwtSecret: "",
+		},
+		{
+			name: "DB fetch fails",
+			method: "POST",
+			expectedCode: 500,
+			credentials: []string{"test_user", "test_password"},
+			row: []string{"test_user", "test_password"},
+			jwtSecret: "test_secret",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			os.Setenv("JWT_SECRET", tt.jwtSecret)
+			db, mock, err = sqlmock.New()
+			if err != nil {
+				t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
+			}
+			defer db.Close()
+
+			if tt.name == "DB fetch fails" {
+				mock.ExpectQuery("SELECT email, password FROM user WHERE email=?").WithArgs(tt.row[0]).WillReturnError(errors.New("db fetch failed"))
+			} else if len(tt.row) == 0 {
+				mock.ExpectQuery("SELECT email, password FROM user WHERE email=?").WithArgs(tt.credentials[0]).WillReturnRows(sqlmock.NewRows([]string{"email", "password"}))
+			} else {
+				rows := sqlmock.NewRows([]string{"email", "password"}).AddRow(tt.row[0], tt.row[1])
+				mock.ExpectQuery("SELECT email, password FROM user WHERE email=?").WithArgs(tt.row[0]).WillReturnRows(rows)
+			}
+
+			req, err := http.NewRequest(tt.method, "/login", nil)
+			if err != nil { t.Fatalf("NewRequest creation failed:\n%s", err.Error()) }
+			req.SetBasicAuth(tt.credentials[0], tt.credentials[1])
+
+			resp := httptest.NewRecorder()
+			handler := http.HandlerFunc(Login)
+			handler.ServeHTTP(resp, req)
+
+			if status := resp.Code; status != tt.expectedCode {
+				t.Fatal("Status was incorrect", status)
+			}
+		})
+	}
+}
