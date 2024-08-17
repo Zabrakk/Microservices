@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"net/http"
+	"os"
 	"testing"
 )
 
@@ -49,3 +50,23 @@ func TestGetBasicAuthCredentialsMissing(t *testing.T) {
 		t.Fatal("Wrong result since username and password were empty", password)
 	}
 }
+
+func TestCreateJWT(t *testing.T) {
+	os.Setenv("JWT_SECRET", "test_secret")
+	tokenString, err := CreateJWT("test_user")
+	if err != nil {
+		t.Fatalf("An unexpected error occured while creating JWT:\n%s", err.Error())
+	}
+	if tokenString == "" {
+		t.Fatal("tokenString was empty")
+	}
+}
+
+func TestCreateJWTSecretNotSet(t *testing.T) {
+	os.Setenv("JWT_SECRET", "")
+	_, err := CreateJWT("test_user")
+	if err == nil {
+		t.Fatal("JWT was created with empty JWT_SECRET")
+	}
+}
+
