@@ -26,6 +26,13 @@ func MethodNotAllowed(w http.ResponseWriter) {
 	fmt.Fprintf(w, "The method is not allowed for the requested URL.")
 }
 
+// This function is used to send a HTTP response with status code 409.
+// Use, e.g., when a duplicate entry error occurs with the DB.
+func Conflict(w http.ResponseWriter) {
+	w.WriteHeader(http.StatusConflict)
+	fmt.Fprintf(w, "The method is not allowed for the requested URL.")
+}
+
 // This function is used to send a HTTP response with status code 500.
 // Use it when something unexpected occurs.
 func InternalServerError(w http.ResponseWriter) {

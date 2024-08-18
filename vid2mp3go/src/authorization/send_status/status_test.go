@@ -45,6 +45,14 @@ func TestMethodNowAllowed(t *testing.T) {
 	}
 }
 
+func TestConflict(t *testing.T) {
+	w := MockResponseWriter{}
+	Conflict(&w)
+	if w.Code != 409 {
+		t.Fatal("Status code was incorrect", w.Code)
+	}
+}
+
 func TestInternalServerError(t *testing.T) {
 	w := MockResponseWriter{}
 	InternalServerError(&w)
