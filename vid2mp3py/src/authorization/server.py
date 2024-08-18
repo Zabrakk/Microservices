@@ -82,7 +82,7 @@ def createJWT(username: str, jwt_secret: str, is_admin: bool) -> str:
 @server.route('/validate', methods=['POST'])
 def validate() -> Tuple[str, int]:
 	"""
-	Checks wheter a valid JSON Web Token is present in the received POST request.
+	Checks whether a valid JSON Web Token is present in the received POST request.
 
 	Returns
 	- (str, int): JWT or error msg, status code
