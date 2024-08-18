@@ -194,15 +194,13 @@ func TestRegister(t *testing.T) {
 		credentials		[]string
 		jwtSecret		string
 	}{
-		/*
 		{
 			name: "Successful registration",
 			method: "POST",
 			expectedCode: 200,
-			credentials: []string{"test_user", "test_password"}
+			credentials: []string{"test_user", "test_password"},
 			jwtSecret: "test_secret",
 		},
-		*/
 		{
 			name: "Incorrect HTTP request method",
 			method: "GET",
@@ -218,6 +216,13 @@ func TestRegister(t *testing.T) {
 			jwtSecret: "test_secret",
 		},
 		{
+			name: "JWT creation fails",
+			method: "POST",
+			expectedCode: 500,
+			credentials: []string{"test_user", "test_password"},
+			jwtSecret: "",
+		},
+		{
 			name: "Insert into DB fails",
 			method: "POST",
 			expectedCode: 500,
@@ -228,7 +233,7 @@ func TestRegister(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			os.Setenv("JWT_SECRET", tt.jwtSecret)
-			db, mock, err = sqlmock.New()
+			db, mock, err = sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
 			if err != nil {
 				t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
 			}
@@ -243,6 +248,8 @@ func TestRegister(t *testing.T) {
 
 			if tt.name == "Insert into DB fails" {
 				mock.ExpectExec("INSTERT INTO user (email, password) VALUES (?, ?)").WillReturnError(errors.New("duplicate entry in DB"))
+			} else if len(tt.credentials) > 0 {
+				mock.ExpectExec("INSTERT INTO user (email, password) VALUES (?, ?)").WithArgs(tt.credentials[0], tt.credentials[1]).WillReturnResult(sqlmock.NewResult(1, 1))
 			}
 
 			resp := httptest.NewRecorder()
@@ -251,6 +258,13 @@ func TestRegister(t *testing.T) {
 
 			if status := resp.Code; status != tt.expectedCode {
 				t.Fatal("Status was incorrect", status)
+			}
+			if resp.Code == 200 {
+				bodyBytes, err := io.ReadAll(resp.Body)
+				if err != nil { t.Fatalf("Error while reading resp body:\n%s", err.Error()) }
+				if len(string(bodyBytes)) == 0 {
+					t.Fatal("Did not receive JWT")
+				}
 			}
 		})
 	}
