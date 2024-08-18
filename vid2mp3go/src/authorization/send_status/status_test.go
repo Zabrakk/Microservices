@@ -21,42 +21,32 @@ func (w *MockResponseWriter) WriteHeader(statusCode int) {
 	w.Code = statusCode
 }
 
-func TestBadRequest(t *testing.T) {
+type fn func(http.ResponseWriter)
+
+func CheckStatus(f fn, expectedStatus int, t *testing.T) {
 	w := MockResponseWriter{}
-	BadRequest(&w)
-	if w.Code != 400 {
+	f(&w)
+	if w.Code != expectedStatus {
 		t.Fatal("Status code was incorrect", w.Code)
 	}
+}
+
+func TestBadRequest(t *testing.T) {
+	CheckStatus(BadRequest, 400, t)
 }
 
 func TestInvalidCredentials(t *testing.T) {
-	w := MockResponseWriter{}
-	InvalidCredentials(&w)
-	if w.Code != 401 {
-		t.Fatal("Status code was incorrect", w.Code)
-	}
+	CheckStatus(InvalidCredentials, 401, t)
 }
 
-func TestMethodNowAllowed(t *testing.T) {
-	w := MockResponseWriter{}
-	MethodNotAllowed(&w)
-	if w.Code != 405 {
-		t.Fatal("Status code was incorrect", w.Code)
-	}
+func TestMethodNotwAllowed(t *testing.T) {
+	CheckStatus(MethodNotAllowed, 405, t)
 }
 
 func TestConflict(t *testing.T) {
-	w := MockResponseWriter{}
-	Conflict(&w)
-	if w.Code != 409 {
-		t.Fatal("Status code was incorrect", w.Code)
-	}
+	CheckStatus(Conflict, 409, t)
 }
 
 func TestInternalServerError(t *testing.T) {
-	w := MockResponseWriter{}
-	InternalServerError(&w)
-	if w.Code != 500 {
-		t.Fatal("Status code was incorrect", w.Code)
-	}
+	CheckStatus(InternalServerError, 500, t)
 }
