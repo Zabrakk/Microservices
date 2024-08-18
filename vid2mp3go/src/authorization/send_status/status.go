@@ -30,7 +30,7 @@ func MethodNotAllowed(w http.ResponseWriter) {
 // Use, e.g., when a duplicate entry error occurs with the DB.
 func Conflict(w http.ResponseWriter) {
 	w.WriteHeader(http.StatusConflict)
-	fmt.Fprintf(w, "The method is not allowed for the requested URL.")
+	fmt.Fprintf(w, "Conflict.")
 }
 
 // This function is used to send a HTTP response with status code 500.
