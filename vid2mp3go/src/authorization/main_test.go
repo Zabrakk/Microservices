@@ -278,3 +278,73 @@ func TestRegister(t *testing.T) {
 		})
 	}
 }
+
+func TestValidate(t *testing.T) {
+	tests := []struct {
+		name			string
+		method			string
+		expectedCode	int
+		jwtSecret		string
+	} {
+		{
+			name: "Successful validation",
+			method: "POST",
+			expectedCode: 200,
+			jwtSecret: "test_secret",
+		},
+		{
+			name: "Incorrect HTTP request method",
+			method: "GET",
+			expectedCode: 405,
+			jwtSecret: "test_secret",
+		},
+		{
+			name: "JWT secret not set",
+			method: "POST",
+			expectedCode: 500,
+			jwtSecret: "",
+		},
+		{
+			name: "JWT missing from headers",
+			method: "POST",
+			expectedCode: 400,
+			jwtSecret: "test_secret",
+		},
+		{
+			name: "Not Authorized",
+			method: "POST",
+			expectedCode: 403,
+			jwtSecret: "test_secret",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			os.Setenv("JWT_SECRET", tt.jwtSecret)
+			req, err := http.NewRequest(tt.method, "/validate", nil)
+			if err != nil { t.Fatalf("NewRequest creation failed:\n%s", err.Error()) }
+
+			if tt.expectedCode == 200 {
+				tokenString, err := CreateJWT("test_user")
+				if err != nil { t.Fatalf("JWT creation failed\n:%s", err.Error()) }
+				req.Header.Add("Authorization", tokenString)
+			} else if tt.expectedCode != 400 {
+				req.Header.Add("Authorization", "eyJhbGciOiJIU")
+			}
+
+			resp := httptest.NewRecorder()
+			handler := http.HandlerFunc(Validate)
+			handler.ServeHTTP(resp, req)
+
+			if status := resp.Code; status != tt.expectedCode {
+				t.Fatal("Status was incorrect", status)
+			}
+			if resp.Code == 200 {
+				bodyBytes, err := io.ReadAll(resp.Body)
+				if err != nil { t.Fatalf("Error while reading resp body:\n%s", err.Error()) }
+				if len(string(bodyBytes)) == 0 {
+					t.Fatal("Did not receive JWT")
+				}
+			}
+		})
+	}
+}
