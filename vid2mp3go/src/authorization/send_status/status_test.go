@@ -39,6 +39,10 @@ func TestInvalidCredentials(t *testing.T) {
 	CheckStatus(InvalidCredentials, 401, t)
 }
 
+func TestForbidden(t *testing.T) {
+	CheckStatus(Forbidden, 403, t)
+}
+
 func TestMethodNotwAllowed(t *testing.T) {
 	CheckStatus(MethodNotAllowed, 405, t)
 }

@@ -19,6 +19,13 @@ func InvalidCredentials(w http.ResponseWriter) {
 	fmt.Fprintf(w, "Credentials were invalid.")
 }
 
+// This function is used to send a HTTP response with status code 403.
+// Use it, e.g., when someone is not authorized
+func Forbidden(w http.ResponseWriter) {
+	w.WriteHeader(http.StatusForbidden)
+	fmt.Fprintf(w, "Credentials were invalid.")
+}
+
 // This function is used to send a HTTP response with status code 405.
 // Use it when receiving a request with an unallowed HTTP method.
 func MethodNotAllowed(w http.ResponseWriter) {
