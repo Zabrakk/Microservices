@@ -99,7 +99,9 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	SendStatus.InvalidCredentials(w)
 }
 
-// TODO
+// Attempts to register a new user based on the Username and Password included in the
+// received POST request's headers. A JWT is returned after successful registrations.
+// In all other cases, an error is returned.
 func Register(w http.ResponseWriter, r *http.Request) {
 	log.Println("Register request received with method", r.Method)
 	if r.Method != "POST" {
@@ -132,12 +134,34 @@ func Register(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "%s", tokenString)
 }
 
-// TODO
+// Checks whether a valid JSON Web Token is present in the received POST request.
 func Validate(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		SendStatus.MethodNotAllowed(w)
+		return
 	}
-	fmt.Fprintf(w, "Validated")
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		log.Println("Env variable JWT_SECRET was empty")
+		SendStatus.InternalServerError(w)
+		return
+	}
+	tokenString := r.Header.Get("Authorization")
+	if tokenString == "" {
+		log.Println("JWT was missing from request headers")
+		SendStatus.BadRequest(w)
+		return
+	}
+	claims := jwt.MapClaims{}
+	decodedJWT, err := jwt.ParseWithClaims(tokenString, claims, func(t *jwt.Token) (interface{}, error) {
+		return []byte(jwtSecret), nil
+	})
+	if err != nil {
+		log.Printf("JWT decode failed:\n%s", err.Error())
+		SendStatus.Forbidden(w)
+		return
+	}
+	fmt.Fprintf(w, decodedJWT.Raw)
 }
 
 func main() {
