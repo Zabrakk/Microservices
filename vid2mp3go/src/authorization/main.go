@@ -110,7 +110,7 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		SendStatus.BadRequest(w)
 		return
 	}
-	_, err := db.Exec("INSTERT INTO user (email, password) VALUES (?, ?)", username, password)
+	_, err := db.Exec("INSERT INTO user (email, password) VALUES (?, ?)", username, password)
 	if err != nil {
 		log.Printf("Something went wrong trying to register user to DB:\n%s", err.Error())
 		SendStatus.InternalServerError(w)

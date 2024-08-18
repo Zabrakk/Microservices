@@ -247,9 +247,9 @@ func TestRegister(t *testing.T) {
 			}
 
 			if tt.name == "Insert into DB fails" {
-				mock.ExpectExec("INSTERT INTO user (email, password) VALUES (?, ?)").WillReturnError(errors.New("duplicate entry in DB"))
+				mock.ExpectExec("INSERT INTO user (email, password) VALUES (?, ?)").WillReturnError(errors.New("duplicate entry in DB"))
 			} else if len(tt.credentials) > 0 {
-				mock.ExpectExec("INSTERT INTO user (email, password) VALUES (?, ?)").WithArgs(tt.credentials[0], tt.credentials[1]).WillReturnResult(sqlmock.NewResult(1, 1))
+				mock.ExpectExec("INSERT INTO user (email, password) VALUES (?, ?)").WithArgs(tt.credentials[0], tt.credentials[1]).WillReturnResult(sqlmock.NewResult(1, 1))
 			}
 
 			resp := httptest.NewRecorder()
