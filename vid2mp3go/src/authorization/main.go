@@ -9,6 +9,7 @@ import (
 	SendStatus "microservices/authorization/send_status"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	jwt "github.com/golang-jwt/jwt/v5"
@@ -111,8 +112,14 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_, err := db.Exec("INSERT INTO user (email, password) VALUES (?, ?)", username, password)
+
 	if err != nil {
-		log.Printf("Something went wrong trying to register user to DB:\n%s", err.Error())
+		errString := err.Error()
+		log.Printf("Something went wrong trying to register user to DB:\n%s", errString)
+		if strings.Contains(errString, "Error 1062") {
+			SendStatus.Conflict(w)
+			return
+		}
 		SendStatus.InternalServerError(w)
 		return
 	}

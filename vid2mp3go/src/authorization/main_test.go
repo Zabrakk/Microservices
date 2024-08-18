@@ -223,6 +223,13 @@ func TestRegister(t *testing.T) {
 			jwtSecret: "",
 		},
 		{
+			name: "Duplicate in DB",
+			method: "POST",
+			expectedCode: 409,
+			credentials: []string{"test_user", "test_password"},
+			jwtSecret: "test_secret",
+		},
+		{
 			name: "Insert into DB fails",
 			method: "POST",
 			expectedCode: 500,
@@ -247,7 +254,9 @@ func TestRegister(t *testing.T) {
 			}
 
 			if tt.name == "Insert into DB fails" {
-				mock.ExpectExec("INSERT INTO user (email, password) VALUES (?, ?)").WillReturnError(errors.New("duplicate entry in DB"))
+				mock.ExpectExec("INSERT INTO user (email, password) VALUES (?, ?)").WillReturnError(errors.New("Something bad happened"))
+			} else if tt.name == "Duplicate in DB" {
+				mock.ExpectExec("INSERT INTO user (email, password) VALUES (?, ?)").WillReturnError(errors.New("Error 1062 (23000): Duplicate entry"))
 			} else if len(tt.credentials) > 0 {
 				mock.ExpectExec("INSERT INTO user (email, password) VALUES (?, ?)").WithArgs(tt.credentials[0], tt.credentials[1]).WillReturnResult(sqlmock.NewResult(1, 1))
 			}
