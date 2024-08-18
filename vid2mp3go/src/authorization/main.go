@@ -110,14 +110,19 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		SendStatus.BadRequest(w)
 		return
 	}
-	result, err := db.Exec("INSTERT INTO user (email, password) VALUES (?, ?)", username, password)
+	_, err := db.Exec("INSTERT INTO user (email, password) VALUES (?, ?)", username, password)
 	if err != nil {
-		log.Printf("Something went wrong trying to rgister user to DB:\n%s", err.Error())
+		log.Printf("Something went wrong trying to register user to DB:\n%s", err.Error())
 		SendStatus.InternalServerError(w)
 		return
 	}
-	log.Println(result.LastInsertId())
-	fmt.Fprintf(w, "Registered")
+	tokenString, err := CreateJWT(username)
+	if err != nil {
+		log.Printf("Error occured while trying to create JWT:\n%s", err.Error())
+		SendStatus.InternalServerError(w)
+		return
+	}
+	fmt.Fprintf(w, "%s", tokenString)
 }
 
 // TODO
