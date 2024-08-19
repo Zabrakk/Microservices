@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mysql
+spec:
+  serviceName: "not-applicable"
+  selector:
+    matchLabels:
+      app: mysql
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      containers:
+        - name: mysql
+          image: zbrk/py-mysql
+          ports:
+            - name: sql
+              protocol: TCP
+              containerPort: 3306
+          envFrom:
+            - configMapRef:
+                name: mysql-configmap
+            - secretRef:
+                name: mysql-secret
+          volumeMounts:
+            - mountPath: "/var/lib/mysql"
+              name: mysql-volume
+      volumes:
+        - name: mysql-volume
+          persistentVolumeClaim:
+              claimName: mysql-pvc
