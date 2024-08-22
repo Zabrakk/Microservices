@@ -90,7 +90,6 @@ func main() {
 	FailOnError(err, "Channel consume failed")
 
 	var forever chan struct{}
-
 	// Message handler
 	go func() {
 		for d := range msgs {
