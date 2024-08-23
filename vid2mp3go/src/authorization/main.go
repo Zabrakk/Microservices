@@ -152,6 +152,7 @@ func Validate(w http.ResponseWriter, r *http.Request) {
 		SendStatus.BadRequest(w)
 		return
 	}
+	tokenString = strings.Split(tokenString, " ")[1]
 	claims := jwt.MapClaims{}
 	decodedJWT, err := jwt.ParseWithClaims(tokenString, claims, func(t *jwt.Token) (interface{}, error) {
 		return []byte(jwtSecret), nil
