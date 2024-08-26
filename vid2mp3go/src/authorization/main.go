@@ -165,6 +165,7 @@ func Validate(w http.ResponseWriter, r *http.Request) {
 		SendStatus.BadRequest(w)
 		return
 	}
+	// Extract claims from the received JWT
 	claims := jwt.MapClaims{}
 	_, err := jwt.ParseWithClaims(tokenString[1], claims, func(t *jwt.Token) (interface{}, error) {
 		return []byte(jwtSecret), nil
@@ -174,6 +175,7 @@ func Validate(w http.ResponseWriter, r *http.Request) {
 		SendStatus.Forbidden(w)
 		return
 	}
+	// Turn the JWT into JSON that is sent back to the Gateway service
 	res := JsonStruct{}
 	for key, val := range claims {
 		if key == "username" {
