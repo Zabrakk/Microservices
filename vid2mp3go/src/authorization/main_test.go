@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -311,6 +312,12 @@ func TestValidate(t *testing.T) {
 			jwtSecret: "test_secret",
 		},
 		{
+			name: "Bearer token length is incorrect",
+			method: "POST",
+			expectedCode: 400,
+			jwtSecret: "test_secret",
+		},
+		{
 			name: "Not Authorized",
 			method: "POST",
 			expectedCode: 403,
@@ -326,9 +333,11 @@ func TestValidate(t *testing.T) {
 			if tt.expectedCode == 200 {
 				tokenString, err := CreateJWT("test_user")
 				if err != nil { t.Fatalf("JWT creation failed\n:%s", err.Error()) }
-				req.Header.Add("Authorization", tokenString)
+				req.Header.Add("Authorization", "Bearer " +  tokenString)
+			} else if tt.name == "Bearer token length is incorrect" {
+				req.Header.Add("Authorization", "tokenString")
 			} else if tt.expectedCode != 400 {
-				req.Header.Add("Authorization", "eyJhbGciOiJIU")
+				req.Header.Add("Authorization", "Bearer " + "tokenString")
 			}
 
 			resp := httptest.NewRecorder()
@@ -341,8 +350,15 @@ func TestValidate(t *testing.T) {
 			if resp.Code == 200 {
 				bodyBytes, err := io.ReadAll(resp.Body)
 				if err != nil { t.Fatalf("Error while reading resp body:\n%s", err.Error()) }
-				if len(string(bodyBytes)) == 0 {
+				body := string(bodyBytes)
+				if len(body) == 0 {
 					t.Fatal("Did not receive JWT")
+				}
+				if !strings.Contains(body, `"username":"test_user"`) {
+					t.Fatal("Response JSON did not include username")
+				}
+				if !strings.Contains(body, `"admin":true}`) {
+					t.Fatal("Response JSON did not include admin")
 				}
 			}
 		})
