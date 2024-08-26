@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -18,6 +19,12 @@ import (
 )
 
 var db *sql.DB
+
+type JsonStruct struct {
+	Username	string		`json:"username"`
+	Exp			float64		`json:"exp"`
+	Admin		bool		`json:"admin"`
+}
 
 // Gets the BasicAuth credentials present in a given http.Request.
 // If there are no credentials present, "ok" will be false.
@@ -146,15 +153,20 @@ func Validate(w http.ResponseWriter, r *http.Request) {
 		SendStatus.InternalServerError(w)
 		return
 	}
-	tokenString := r.Header.Get("Authorization")
-	if tokenString == "" {
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" {
 		log.Println("JWT was missing from request headers")
 		SendStatus.BadRequest(w)
 		return
 	}
-	tokenString = strings.Split(tokenString, " ")[1]
+	tokenString := strings.Split(authHeader, " ")
+	if len(tokenString) != 2 {
+		log.Println("JWT length was incorrect after split")
+		SendStatus.BadRequest(w)
+		return
+	}
 	claims := jwt.MapClaims{}
-	decodedJWT, err := jwt.ParseWithClaims(tokenString, claims, func(t *jwt.Token) (interface{}, error) {
+	_, err := jwt.ParseWithClaims(tokenString[1], claims, func(t *jwt.Token) (interface{}, error) {
 		return []byte(jwtSecret), nil
 	})
 	if err != nil {
@@ -162,7 +174,18 @@ func Validate(w http.ResponseWriter, r *http.Request) {
 		SendStatus.Forbidden(w)
 		return
 	}
-	fmt.Fprintf(w, decodedJWT.Raw)
+	res := JsonStruct{}
+	for key, val := range claims {
+		if key == "username" {
+			res.Username = val.(string)
+		} else if key == "admin" {
+			res.Admin = val.(bool)
+		} else if key == "exp" {
+			res.Exp = val.(float64)
+		}
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(res)
 }
 
 func main() {
