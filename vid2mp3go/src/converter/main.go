@@ -1,17 +1,29 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 
 	amqp "github.com/rabbitmq/amqp091-go"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/gridfs"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
+
+var fsVideos, fsMp3s *gridfs.Bucket
+
+type RabbitMQMessage struct {
+	VideoFid	string		`json:"video_fid"`
+	Mp3Fid		string		`json:"mp3_fid"`
+	Username	string		`json:"username"`
+}
 
 // This function is for error checking. If the given err is not nil,
 // then the msg will be logged along with the error string.
@@ -31,6 +43,47 @@ func GetMongoUri() (mongoUri string, err error) {
 	return fmt.Sprintf("mongodb://%s:%s", host, port), nil
 }
 
+func ConvertToMp3(body []byte) (err error) {
+	var receivedMsg RabbitMQMessage
+	json.Unmarshal(body, &receivedMsg)
+	log.Printf("VideoFid %s, Mp3Fid %s, Username %s \n", receivedMsg.VideoFid, receivedMsg.Mp3Fid, receivedMsg.Username)
+
+	log.Println("Creating temp files for video and audio")
+
+	tempVidoeFile, err := os.CreateTemp(".", "video")
+	if err != nil { return err }
+	tempAudioFile, err := os.CreateTemp(".", "mp3")
+	if err != nil { return err }
+	defer tempVidoeFile.Close()
+	defer tempAudioFile.Close()
+
+	log.Println("Getting ID from Hex")
+
+	id, err := primitive.ObjectIDFromHex(receivedMsg.VideoFid)
+	if err != nil { return err }
+
+	log.Println("Downloading video")
+	var buffer bytes.Buffer
+	n, err := fsVideos.DownloadToStream(id, &buffer)
+	if err != nil { return err }
+	log.Printf("Downloaded %d bytes\n", n)
+
+	log.Println("Writing video to file")
+	n2, err := tempVidoeFile.Write(buffer.Bytes())
+	if err != nil { return err }
+	log.Printf("Wrote %d bytes to video file\n", n2)
+
+	log.Println("Extracting audio from video")
+	cmd := exec.Command("ffmpeg", "-i", tempVidoeFile.Name(), "-q:a", "0", "-map", "a", tempAudioFile.Name())
+	err = cmd.Run()
+	if err != nil { return err }
+
+
+	log.Println("Done")
+
+	return nil
+}
+
 func main() {
 	log.Println("Converter service starting...")
 
@@ -48,9 +101,9 @@ func main() {
 	db_mp3s := client.Database("mp3s")
 
 	// Create gridFS buckets
-	_, err = gridfs.NewBucket(db_videos, options.GridFSBucket().SetName("fs_videos"))
+	fsVideos, err = gridfs.NewBucket(db_videos, options.GridFSBucket().SetName("fs_videos"))
 	FailOnError(err, "fs_videos creation failed")
-	_, err = gridfs.NewBucket(db_mp3s, options.GridFSBucket().SetName("fs_mp3s"))
+	fsMp3s, err = gridfs.NewBucket(db_mp3s, options.GridFSBucket().SetName("fs_mp3s"))
 	FailOnError(err, "fs_mp3s creation failed")
 	log.Println("Created GridFS buckets")
 
@@ -81,7 +134,7 @@ func main() {
 	msgs, err := channel.Consume(
 		queue.Name, // Queue
 		"",     	// Consumer
-		true,   	// Auto-ack, TODO Change to false
+		false,   	// Auto-ack
 		false,  	// Exclusive
 		false,  	// No-local
 		false,  	// No-wait
@@ -92,10 +145,18 @@ func main() {
 	var forever chan struct{}
 	// Message handler
 	go func() {
-		for d := range msgs {
-			log.Printf("Received a message: %s", d.Body)
+		for msg := range msgs {
+			log.Printf("Received a message: %s", msg.Body)
+			if err := ConvertToMp3(msg.Body); err != nil {
+				// Send nack if something goes wrong with convertion
+				log.Println("Error occured during video convertion process:\n", err.Error())
+				channel.Ack(msg.DeliveryTag, true)
+				//channel.Nack(msg.DeliveryTag, false, true)
+			} else {
+				channel.Ack(msg.DeliveryTag, true)
+			}
 		}
 	}()
-	log.Println("Waiting for messages")
+	log.Println("Waiting for messages...")
 	<-forever
 }
