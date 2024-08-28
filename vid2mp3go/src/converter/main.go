@@ -35,6 +35,9 @@ func FailOnError(err error, msg string) {
 	}
 }
 
+// This function reads the MONGODB_HOST and MONGODB_PORT env variables
+// and uses them to create the mongoUri. If the env variables have not been
+// set, this function returns an error.
 func GetMongoUri() (mongoUri string, err error) {
 	host, port := os.Getenv("MONGODB_HOST"), os.Getenv("MONGODB_PORT")
 	if host == "" || port == "" {
