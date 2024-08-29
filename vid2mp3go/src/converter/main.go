@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -17,7 +16,8 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-var fsVideos, fsMp3s *gridfs.Bucket
+var dbVideos, dbMp3s	*mongo.Database
+var fsVideos, fsMp3s	*gridfs.Bucket
 
 type RabbitMQMessage struct {
 	VideoFid	string		`json:"video_fid"`
@@ -53,36 +53,40 @@ func ConvertToMp3(body []byte) (err error) {
 
 	log.Println("Creating temp files for video and audio")
 
-	tempVidoeFile, err := os.CreateTemp(".", "video")
+	tempVideoFile, err := os.CreateTemp(".", "video")
 	if err != nil { return err }
-	tempAudioFile, err := os.CreateTemp(".", "mp3")
+	tempAudioFile, err := os.CreateTemp(".", "*.mp3")
 	if err != nil { return err }
-	defer tempVidoeFile.Close()
-	defer tempAudioFile.Close()
+	defer os.Remove(tempVideoFile.Name())
+	defer os.Remove(tempAudioFile.Name())
 
 	log.Println("Getting ID from Hex")
-
 	id, err := primitive.ObjectIDFromHex(receivedMsg.VideoFid)
 	if err != nil { return err }
 
+	log.Println("Creating GridFS buckets")
+	fsVideos, err = gridfs.NewBucket(dbVideos, options.GridFSBucket())
+	if err != nil { return err }
+	fsMp3s, err = gridfs.NewBucket(dbMp3s, options.GridFSBucket())
+	if err != nil { return err }
+
 	log.Println("Downloading video")
-	var buffer bytes.Buffer
-	n, err := fsVideos.DownloadToStream(id, &buffer)
+	n, err := fsVideos.DownloadToStream(id, tempVideoFile)
 	if err != nil { return err }
 	log.Printf("Downloaded %d bytes\n", n)
 
-	log.Println("Writing video to file")
-	n2, err := tempVidoeFile.Write(buffer.Bytes())
-	if err != nil { return err }
-	log.Printf("Wrote %d bytes to video file\n", n2)
-
 	log.Println("Extracting audio from video")
-	cmd := exec.Command("ffmpeg", "-i", tempVidoeFile.Name(), "-q:a", "0", "-map", "a", tempAudioFile.Name())
+	cmd := exec.Command("ffmpeg", "-y", "-i", tempVideoFile.Name(), "-q:a", "0", "-map", "a", tempAudioFile.Name())
 	err = cmd.Run()
 	if err != nil { return err }
 
+	log.Println("Saving audio to MongoDB")
+	audioFid, err := fsMp3s.UploadFromStream(tempAudioFile.Name(), tempAudioFile)
+	if err != nil { return err }
 
-	log.Println("Done")
+	log.Printf("Audio uploaded with FID %s\n", audioFid)
+
+	// TODO: Send message to RabbitMQ about audio creation
 
 	return nil
 }
@@ -100,15 +104,17 @@ func main() {
 	log.Println("Connected to mongoDB")
 
 	// Create DB handles for the video and mp3 storage databases
-	db_videos := client.Database("videos")
-	db_mp3s := client.Database("mp3s")
+	dbVideos = client.Database("videos")
+	dbMp3s = client.Database("mp3s")
 
 	// Create gridFS buckets
+	/*
 	fsVideos, err = gridfs.NewBucket(db_videos, options.GridFSBucket().SetName("fs_videos"))
 	FailOnError(err, "fs_videos creation failed")
 	fsMp3s, err = gridfs.NewBucket(db_mp3s, options.GridFSBucket().SetName("fs_mp3s"))
 	FailOnError(err, "fs_mp3s creation failed")
 	log.Println("Created GridFS buckets")
+	*/
 
 	// Connect to RabbitMQ
 	connection, err := amqp.Dial("amqp://guest:guest@rabbitmq:5672")
