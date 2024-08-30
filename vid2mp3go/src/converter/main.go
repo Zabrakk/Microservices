@@ -18,6 +18,7 @@ import (
 
 var dbVideos, dbMp3s	*mongo.Database
 var fsVideos, fsMp3s	*gridfs.Bucket
+var channel				*amqp.Channel
 
 type RabbitMQMessage struct {
 	VideoFid	string		`json:"video_fid"`
@@ -83,11 +84,26 @@ func ConvertToMp3(body []byte) (err error) {
 	log.Println("Saving audio to MongoDB")
 	audioFid, err := fsMp3s.UploadFromStream(tempAudioFile.Name(), tempAudioFile)
 	if err != nil { return err }
-
 	log.Printf("Audio uploaded with FID %s\n", audioFid)
 
-	// TODO: Send message to RabbitMQ about audio creation
+	receivedMsg.Mp3Fid = audioFid.Hex()
+	body, err = json.Marshal(receivedMsg)
+	if err != nil { return err }
 
+	log.Println("Publishing message to RabbitMQ")
+	err = channel.Publish(
+		"",						// Exchange
+		os.Getenv("MP3_QUEUE"),	// Routing key
+		false,					// Mandatory
+		false,					// Immediate
+		amqp.Publishing{		// Msg
+			ContentType: "application/json",
+			Body: body,
+		},
+	)
+	if err != nil { return err }
+
+	log.Println("Done")
 	return nil
 }
 
@@ -123,7 +139,7 @@ func main() {
 	log.Println("Connected to RabbitMQ")
 
 	// Open a channel for message receiving
-	channel, err := connection.Channel()
+	channel, err = connection.Channel()
 	FailOnError(err, "Opening a RabbitMQ channel failed")
 	defer channel.Close()
 	log.Printf("RabbitMQ channel opened")
