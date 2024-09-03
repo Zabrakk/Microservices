@@ -1,10 +1,7 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
-	"errors"
-	"fmt"
 	"log"
 	"os"
 	"os/exec"
@@ -26,28 +23,20 @@ type RabbitMQMessage struct {
 	Username	string		`json:"username"`
 }
 
-// This function reads the MONGODB_HOST and MONGODB_PORT env variables
-// and uses them to create the mongoUri. If the env variables have not been
-// set, this function returns an error.
-func GetMongoUri() (mongoUri string, err error) {
-	host, port := os.Getenv("MONGODB_HOST"), os.Getenv("MONGODB_PORT")
-	if host == "" || port == "" {
-		return "", errors.New("mongodb env variables were not set")
-	}
-	return fmt.Sprintf("mongodb://%s:%s", host, port), nil
-}
-
 func ConvertToMp3(body []byte) (err error) {
+	// Get JSON data from message body
 	var receivedMsg RabbitMQMessage
 	json.Unmarshal(body, &receivedMsg)
-	log.Printf("VideoFid %s, Mp3Fid %s, Username %s \n", receivedMsg.VideoFid, receivedMsg.Mp3Fid, receivedMsg.Username)
 
+	log.Printf("VideoFid %s, Mp3Fid %s, Username %s \n", receivedMsg.VideoFid, receivedMsg.Mp3Fid, receivedMsg.Username)
 	log.Println("Creating temp files for video and audio")
 
+	// Create temp files for video and audio storage
 	tempVideoFile, err := os.CreateTemp(".", "video")
 	if err != nil { return err }
 	tempAudioFile, err := os.CreateTemp(".", "*.mp3")
 	if err != nil { return err }
+	// Delete temp files when this function finishes
 	defer os.Remove(tempVideoFile.Name())
 	defer os.Remove(tempAudioFile.Name())
 
@@ -55,31 +44,37 @@ func ConvertToMp3(body []byte) (err error) {
 	id, err := primitive.ObjectIDFromHex(receivedMsg.VideoFid)
 	if err != nil { return err }
 
+	// Creates GridFS buckets for file downloads and uploads
 	log.Println("Creating GridFS buckets")
 	fsVideos, err = gridfs.NewBucket(dbVideos, options.GridFSBucket())
 	if err != nil { return err }
 	fsMp3s, err = gridfs.NewBucket(dbMp3s, options.GridFSBucket())
 	if err != nil { return err }
 
+	// Get video based on id from MongoDB
 	log.Println("Downloading video")
 	n, err := fsVideos.DownloadToStream(id, tempVideoFile)
 	if err != nil { return err }
 	log.Printf("Downloaded %d bytes\n", n)
 
+	// Use ffmpeg to extract audio from tempVideoFile and save it into tempAudioFile
 	log.Println("Extracting audio from video")
 	cmd := exec.Command("ffmpeg", "-y", "-i", tempVideoFile.Name(), "-q:a", "0", "-map", "a", tempAudioFile.Name())
 	err = cmd.Run()
 	if err != nil { return err }
 
+	// Upload the extracted audio to MongoDB and get its FID.
 	log.Println("Saving audio to MongoDB")
 	audioFid, err := fsMp3s.UploadFromStream(tempAudioFile.Name(), tempAudioFile)
 	if err != nil { return err }
 	log.Printf("Audio uploaded with FID %s\n", audioFid)
 
+	// Add the audio's FID to the JSON
 	receivedMsg.Mp3Fid = audioFid.Hex()
 	body, err = json.Marshal(receivedMsg)
 	if err != nil { return err }
 
+	// Send the JSON to MP3 queue, informing the notification service of the audio's creation
 	log.Println("Publishing message to RabbitMQ")
 	err = channel.Publish(
 		"",						// Exchange
@@ -100,27 +95,14 @@ func ConvertToMp3(body []byte) (err error) {
 func main() {
 	log.Println("Converter service starting...")
 
-	// Connect to MongoDB
 	uri, err := GetMongoUri()
 	FailOnError(err, "MongoUri creation failed")
 
-	// Create MongoDB client / connection
-	client, err := mongo.Connect(context.TODO(), options.Client().ApplyURI(uri))
-	FailOnError(err, "Creation of MongoDB connection failed")
-	log.Println("Connected to mongoDB")
+	client := ConnectToMongoDB(uri)
 
 	// Create DB handles for the video and mp3 storage databases
 	dbVideos = client.Database("videos")
 	dbMp3s = client.Database("mp3s")
-
-	// Create gridFS buckets
-	/*
-	fsVideos, err = gridfs.NewBucket(db_videos, options.GridFSBucket().SetName("fs_videos"))
-	FailOnError(err, "fs_videos creation failed")
-	fsMp3s, err = gridfs.NewBucket(db_mp3s, options.GridFSBucket().SetName("fs_mp3s"))
-	FailOnError(err, "fs_mp3s creation failed")
-	log.Println("Created GridFS buckets")
-	*/
 
 	connection := ConnectToRabbitMQ()
 	defer connection.Close()

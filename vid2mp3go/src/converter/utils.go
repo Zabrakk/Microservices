@@ -1,9 +1,15 @@
 package main
 
 import (
+	"context"
+	"errors"
+	"fmt"
 	"log"
+	"os"
 
 	amqp "github.com/rabbitmq/amqp091-go"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // This function is for error checking. If the given err is not nil,
@@ -14,6 +20,27 @@ func FailOnError(err error, msg string) {
 		log.Println(msg)
 		log.Fatal(err.Error())
 	}
+}
+
+// This function reads the MONGODB_HOST and MONGODB_PORT env variables
+// and uses them to create the mongoUri. If the env variables have not been
+// set, this function returns an error.
+func GetMongoUri() (mongoUri string, err error) {
+	host, port := os.Getenv("MONGODB_HOST"), os.Getenv("MONGODB_PORT")
+	if host == "" || port == "" {
+		return "", errors.New("mongodb env variables were not set")
+	}
+	return fmt.Sprintf("mongodb://%s:%s", host, port), nil
+}
+
+// Connects to MongoDB and returns a *mongo.client.
+// The URI for the DB is to be given with the mongoUri param.
+// Uses FailOnError to handle errors.
+func ConnectToMongoDB(mongoUri string) (client *mongo.Client) {
+	log.Println("Connecting to MongoDB")
+	client, err := mongo.Connect(context.TODO(), options.Client().ApplyURI(mongoUri))
+	FailOnError(err, "Creation of MongoDB connection failed")
+	return client
 }
 
 // Connects to RabbitMQ and returns a *amqp.Connection.
