@@ -26,16 +26,6 @@ type RabbitMQMessage struct {
 	Username	string		`json:"username"`
 }
 
-// This function is for error checking. If the given err is not nil,
-// then the msg will be logged along with the error string.
-// Finally os.Exit(1) occurs. However, if err is nil, nothing happens.
-func FailOnError(err error, msg string) {
-	if err != nil {
-		log.Println(msg)
-		log.Fatal(err.Error())
-	}
-}
-
 // This function reads the MONGODB_HOST and MONGODB_PORT env variables
 // and uses them to create the mongoUri. If the env variables have not been
 // set, this function returns an error.
@@ -132,28 +122,13 @@ func main() {
 	log.Println("Created GridFS buckets")
 	*/
 
-	// Connect to RabbitMQ
-	connection, err := amqp.Dial("amqp://guest:guest@rabbitmq:5672")
-	FailOnError(err, "Connecting to RabbitMQ failed")
+	connection := ConnectToRabbitMQ()
 	defer connection.Close()
-	log.Println("Connected to RabbitMQ")
 
-	// Open a channel for message receiving
-	channel, err = connection.Channel()
-	FailOnError(err, "Opening a RabbitMQ channel failed")
+	channel = OpenChannel(connection)
 	defer channel.Close()
-	log.Printf("RabbitMQ channel opened")
 
-	// Create a Queue for videos
-	queue, err := channel.QueueDeclare(
-		os.Getenv("VIDEO_QUEUE"),	// Name
-		true,						// Durable
-		false,						// Delete when unused
-		false,						// Exclusive
-		false,						// No-wait
-		nil,						// Args
-	)
-	FailOnError(err, "RabbitMQ queue creation failed")
+	queue := CreateQueue(channel, os.Getenv("VIDEO_QUEUE"))
 
 	// Start consuming messages from the queue
 	msgs, err := channel.Consume(
