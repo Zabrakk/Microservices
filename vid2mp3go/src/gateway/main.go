@@ -1,6 +1,7 @@
 package main
 
 import (
+	SendStatus "gateway/send_status"
 	"log"
 	"net/http"
 )
@@ -8,7 +9,11 @@ import (
 var servicePort string = "8080"
 
 func Login(w http.ResponseWriter, r *http.Request) {
-
+	auth := r.Header.Get("Authorization")
+	if auth == "" {
+		SendStatus.InvalidCredentials(w)
+		return
+	}
 }
 
 func Register(w http.ResponseWriter, r *http.Request) {
