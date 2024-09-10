@@ -81,3 +81,39 @@ func TestLogin(t *testing.T) {
 		})
 	}
 }
+
+func TestRegister(t *testing.T) {
+	tests := []struct {
+		name			string
+		method			string
+		expectedCode	int
+		credentials		[]string
+	} {
+		{
+			name: "Incorrect HTTP request method",
+			method: "GET",
+			expectedCode: 405,
+			credentials: []string{"test", "test"},
+		},
+		{
+			name: "Credentails are missing",
+			method: "POST",
+			expectedCode: 400,
+			credentials: []string{"", ""},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req, err := http.NewRequest(tt.method, "/register", nil)
+			if err != nil { t.Fatalf("NewRequest creation failed:\n%s", err.Error()) }
+			req.Header.Add("Username", tt.credentials[0])
+			req.Header.Add("Password", tt.credentials[1])
+
+			resp := httptest.NewRecorder()
+			handler := http.HandlerFunc(Register)
+			handler.ServeHTTP(resp, req)
+
+			if resp.Code != tt.expectedCode { t.Fatal("Status was incorrect", resp.Code) }
+		})
+	}
+}
