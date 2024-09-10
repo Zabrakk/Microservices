@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func MockAuthServiceHandler(w http.ResponseWriter, r *http.Request) {
+func MockLoginHandler(w http.ResponseWriter, r *http.Request) {
 	username, password, ok := r.BasicAuth()
 	if !ok || username != "test" || password != "test" {
 		w.WriteHeader(401)
@@ -61,7 +61,7 @@ func TestLogin(t *testing.T) {
 
 			if tt.expectedCode != 500 {
 				// When expectedCode is 500 the AuthService should not be reachable.
-				mockAuthService := httptest.NewServer(http.HandlerFunc(MockAuthServiceHandler))
+				mockAuthService := httptest.NewServer(http.HandlerFunc(MockLoginHandler))
 				defer mockAuthService.Close()
 				GetAuthServiceUrl = func() (url string) { return mockAuthService.URL }
 			}
@@ -82,6 +82,15 @@ func TestLogin(t *testing.T) {
 	}
 }
 
+func MockRegisterHandler(w http.ResponseWriter, r *http.Request) {
+	username := r.Header.Get("Username")
+	password := r.Header.Get("Password")
+	if username == "" || password == "" {
+		w.WriteHeader(400)
+	}
+	w.Write([]byte("tokenString"))
+}
+
 func TestRegister(t *testing.T) {
 	tests := []struct {
 		name			string
@@ -89,6 +98,12 @@ func TestRegister(t *testing.T) {
 		expectedCode	int
 		credentials		[]string
 	} {
+		{
+			name: "Successful registration",
+			method: "POST",
+			expectedCode: 200,
+			credentials: []string{"test", "test"},
+		},
 		{
 			name: "Incorrect HTTP request method",
 			method: "GET",
@@ -101,6 +116,12 @@ func TestRegister(t *testing.T) {
 			expectedCode: 400,
 			credentials: []string{"", ""},
 		},
+		{
+			name: "Auth service not reachable",
+			method: "POST",
+			expectedCode: 500,
+			credentials: []string{"test", "test"},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -109,11 +130,25 @@ func TestRegister(t *testing.T) {
 			req.Header.Add("Username", tt.credentials[0])
 			req.Header.Add("Password", tt.credentials[1])
 
+			if tt.expectedCode != 500 {
+				// When expectedCode is 500 the AuthService should not be reachable.
+				mockAuthService := httptest.NewServer(http.HandlerFunc(MockRegisterHandler))
+				defer mockAuthService.Close()
+				GetAuthServiceUrl = func() (url string) { return mockAuthService.URL }
+			}
+
 			resp := httptest.NewRecorder()
 			handler := http.HandlerFunc(Register)
 			handler.ServeHTTP(resp, req)
 
 			if resp.Code != tt.expectedCode { t.Fatal("Status was incorrect", resp.Code) }
+			if resp.Code == 200 {
+				bodyBytes, err := io.ReadAll(resp.Body)
+				if err != nil { t.Fatalf("Error while reading resp body:\n%s", err.Error()) }
+				if string(bodyBytes) != "tokenString" {
+					t.Fatal("Did not receive JWT")
+				}
+			}
 		})
 	}
 }
