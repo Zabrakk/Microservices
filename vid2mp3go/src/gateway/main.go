@@ -98,6 +98,33 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	url := GetAuthServiceUrl()
+	reqToAuthService, err := http.NewRequest("POST", url, nil)
+	if err != nil {
+		SendStatus.InternalServerError(w)
+		return
+	}
+	reqToAuthService.Header.Add("Username", username)
+	reqToAuthService.Header.Add("Password", password)
+
+	resp, err := http.DefaultClient.Do(reqToAuthService)
+	if err != nil {
+		SendStatus.InternalServerError(w)
+		return
+	}
+
+	if resp.StatusCode != 200 {
+		w.WriteHeader(resp.StatusCode)
+		return
+	}
+
+	// Read the JWT tokenString from the Auth service's response
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		SendStatus.InternalServerError(w)
+		return
+	}
+	w.Write(body)
 }
 
 func Upload(w http.ResponseWriter, r *http.Request) {
