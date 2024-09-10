@@ -83,7 +83,20 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// This function expects to find a Username and Password for a new user
+// in the POST request's headers. If found, this information is passed onto
+// the authorization service and the status code the service returns is sent
+// back to the user.
 func Register(w http.ResponseWriter, r *http.Request) {
+	log.Println("Register request received")
+	if !IsPostRequest(w, r) { return }
+
+	username := r.Header.Get("Username")
+	password := r.Header.Get("Password")
+	if username == "" || password == "" {
+		SendStatus.BadRequest(w)
+		return
+	}
 
 }
 
