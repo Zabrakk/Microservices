@@ -4,6 +4,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -149,6 +150,70 @@ func TestRegister(t *testing.T) {
 					t.Fatal("Did not receive JWT")
 				}
 			}
+		})
+	}
+}
+
+func MockValidationHandler(w http.ResponseWriter, r *http.Request) {
+	auth := r.Header.Get("Authorization")
+	tokenString := strings.Split(auth, " ")
+	if len(tokenString) != 2 {
+		w.WriteHeader(400)
+		return
+	}
+	if tokenString[1] != "test" {
+		w.WriteHeader(403)
+		return
+	}
+	w.Write([]byte("jwt"))
+}
+
+func TestValidateToken(t *testing.T) {
+	tests := []struct {
+		name			string
+		expectedCode	int
+		header			string
+	}{
+		{
+			name: "Successful validation",
+			expectedCode: 200,
+			header: "bearer test",
+		},
+		{
+			name: "Auth header empty or missing",
+			expectedCode: 401,
+			header: "",
+		},
+		{
+			name: "Auth header incorrect format",
+			expectedCode: 400,
+			header: "test",
+		},
+		{
+			name: "Auth service not reachable",
+			expectedCode: 500,
+			header: "test",
+		},
+	}
+	for _, tt := range(tests) {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.expectedCode != 500 {
+				mockAuthService := httptest.NewServer(http.HandlerFunc(MockValidationHandler))
+				defer mockAuthService.Close()
+				GetAuthServiceUrl = func() (url string) { return mockAuthService.URL }
+			}
+
+			req, err := http.NewRequest("POST", "", nil)
+			if err != nil { t.Fatalf("NewRequest creation failed:\n%s", err.Error()) }
+			req.Header.Set("Authorization", tt.header)
+
+			jwtObject, statusCode := ValidateToken(req)
+			if statusCode != tt.expectedCode { t.Fatal("Status was incorrect", statusCode) }
+			if statusCode == 200 {
+				if string(jwtObject) != "jwt" { t.Fatal("Received JWT object was incorrect") }
+			}
+
+
 		})
 	}
 }
