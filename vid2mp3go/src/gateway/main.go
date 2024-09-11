@@ -127,6 +127,32 @@ func Register(w http.ResponseWriter, r *http.Request) {
 	w.Write(body)
 }
 
+func ValidateToken(r *http.Request) (jwtObject []byte, statusCode int) {
+	if r.Header.Get("Authorization") == "" {
+		return nil, 401
+	}
+
+	url := GetAuthServiceUrl()
+	reqToAuthService, err := http.NewRequest("POST", url, nil)
+	if err != nil {
+		return nil, 500
+	}
+	reqToAuthService.Header.Set("Authorization", r.Header.Get("Authorization"))
+
+	resp, err := http.DefaultClient.Do(reqToAuthService)
+	if err != nil {
+		return nil, 500
+	}
+	if resp.StatusCode != 200 {
+		return nil, resp.StatusCode
+	}
+	jwtObject, err = io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, 500
+	}
+	return jwtObject, 200
+}
+
 func Upload(w http.ResponseWriter, r *http.Request) {
 
 }
