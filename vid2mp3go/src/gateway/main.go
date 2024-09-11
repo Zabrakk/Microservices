@@ -12,7 +12,7 @@ var servicePort string = "8080"
 
 // Returns the URL to the Authorization service's /login route
 var GetAuthServiceUrl = func () (url string) {
-	return "http://" + os.Getenv("AUTH_SVC_ADDRESS") + "/login"
+	return "http://" + os.Getenv("AUTH_SVC_ADDRESS")
 }
 
 // Check if the HTTP request used the POST method. If POST was used, the function
@@ -98,7 +98,7 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	url := GetAuthServiceUrl()
+	url := GetAuthServiceUrl() + "/register"
 	reqToAuthService, err := http.NewRequest("POST", url, nil)
 	if err != nil {
 		SendStatus.InternalServerError(w)
@@ -132,7 +132,7 @@ func ValidateToken(r *http.Request) (jwtObject []byte, statusCode int) {
 		return nil, 401
 	}
 
-	url := GetAuthServiceUrl()
+	url := GetAuthServiceUrl() + "/validate"
 	reqToAuthService, err := http.NewRequest("POST", url, nil)
 	if err != nil {
 		return nil, 500
@@ -154,6 +154,8 @@ func ValidateToken(r *http.Request) (jwtObject []byte, statusCode int) {
 }
 
 func Upload(w http.ResponseWriter, r *http.Request) {
+	log.Println("Upload request received")
+	if !IsPostRequest(w, r) { return }
 	jwtObject, statusCode := ValidateToken(r)
 	switch statusCode {
 	case 400:
@@ -167,7 +169,8 @@ func Upload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Println(jwtObject)
+	// TODO: LOAD AS JSON
+	log.Println(string(jwtObject))
 }
 
 func Download(w http.ResponseWriter, r *http.Request) {
