@@ -154,7 +154,20 @@ func ValidateToken(r *http.Request) (jwtObject []byte, statusCode int) {
 }
 
 func Upload(w http.ResponseWriter, r *http.Request) {
+	jwtObject, statusCode := ValidateToken(r)
+	switch statusCode {
+	case 400:
+		SendStatus.BadRequest(w)
+		return
+	case 401:
+		SendStatus.InvalidCredentials(w)
+		return
+	case 500:
+		SendStatus.InternalServerError(w)
+		return
+	}
 
+	log.Println(jwtObject)
 }
 
 func Download(w http.ResponseWriter, r *http.Request) {
