@@ -1,12 +1,21 @@
 package main
 
 import (
+	"encoding/json"
+	"fmt"
 	SendStatus "gateway/send_status"
 	"io"
 	"log"
 	"net/http"
 	"os"
+	"strings"
 )
+
+type JsonStruct struct {
+	Username	string		`json:"username"`
+	Exp			float64		`json:"exp"`
+	Admin		bool		`json:"admin"`
+}
 
 var servicePort string = "8080"
 
@@ -29,7 +38,7 @@ func IsPostRequest(w http.ResponseWriter, r *http.Request) bool {
 // If everything is correct, this function returns the JWT token string given by the auth service.
 // Otherwise it will write a StatusCode corresponding to what went wrong and return nil.
 func AuthorizeUser(username string, password string, w http.ResponseWriter) (tokenString []byte) {
-	url := GetAuthServiceUrl()
+	url := GetAuthServiceUrl() + "/login"
 	// Create a new POST request to the auth service
 	reqToAuthService, err := http.NewRequest("POST", url, nil)
 	if err != nil {
@@ -128,6 +137,7 @@ func Register(w http.ResponseWriter, r *http.Request) {
 }
 
 func ValidateToken(r *http.Request) (jwtObject []byte, statusCode int) {
+	log.Println("Validating token")
 	if r.Header.Get("Authorization") == "" {
 		return nil, 401
 	}
@@ -156,6 +166,7 @@ func ValidateToken(r *http.Request) (jwtObject []byte, statusCode int) {
 func Upload(w http.ResponseWriter, r *http.Request) {
 	log.Println("Upload request received")
 	if !IsPostRequest(w, r) { return }
+
 	jwtObject, statusCode := ValidateToken(r)
 	switch statusCode {
 	case 400:
@@ -164,13 +175,35 @@ func Upload(w http.ResponseWriter, r *http.Request) {
 	case 401:
 		SendStatus.InvalidCredentials(w)
 		return
+	case 403:
+		SendStatus.Forbidden(w)
+		return
 	case 500:
 		SendStatus.InternalServerError(w)
 		return
 	}
 
-	// TODO: LOAD AS JSON
-	log.Println(string(jwtObject))
+	log.Println("Converting jwtObject to JsonStruct")
+	var token JsonStruct
+	err := json.Unmarshal(jwtObject, &token)
+	if err != nil {
+		SendStatus.InternalServerError(w)
+		log.Println(err.Error())
+		return
+	}
+
+	if token.Admin {
+		log.Println("Getting file from request")
+		file, header, err := r.FormFile("file")
+		if err != nil {
+			log.Println(err.Error())
+			SendStatus.BadRequest(w)
+			return
+		}
+		defer file.Close()
+		fileName := strings.Split(header.Filename, ".")
+		fmt.Println("Filename was ", fileName[0])
+	}
 }
 
 func Download(w http.ResponseWriter, r *http.Request) {
