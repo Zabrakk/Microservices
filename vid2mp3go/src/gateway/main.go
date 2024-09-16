@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	amqp "github.com/rabbitmq/amqp091-go"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo/gridfs"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -39,6 +40,16 @@ var GetAuthServiceUrl = func () (url string) {
 // returns true. Otherwise MethodNotAllowed is sent and false is returned.
 func IsPostRequest(w http.ResponseWriter, r *http.Request) bool {
 	if r.Method != "POST" {
+		SendStatus.MethodNotAllowed(w)
+		return false
+	}
+	return true
+}
+
+// Check if the HTTP request used the GET method. If GET was used, the function
+// returns true. Otherwise MethodNotAllowed is sent and false is returned.
+func IsGetRequest(w http.ResponseWriter, r *http.Request) bool {
+	if r.Method != "GET" {
 		SendStatus.MethodNotAllowed(w)
 		return false
 	}
@@ -221,7 +232,7 @@ func Upload(w http.ResponseWriter, r *http.Request) {
 		client := ConnectToMongoDB(uri)
 		dbVideos := client.Database("videos")
 
-		log.Println("Creating GridFs buckets")
+		log.Println("Creating GridFs bucket")
 		fsVideos, err := gridfs.NewBucket(dbVideos, options.GridFSBucket())
 		FailOnError(err, "fsVideo creation failed")
 
@@ -262,7 +273,64 @@ func Upload(w http.ResponseWriter, r *http.Request) {
 }
 
 func Download(w http.ResponseWriter, r *http.Request) {
+	log.Println("Download request received")
+	if !IsGetRequest(w, r) { return }
 
+	jwtObject, statusCode := ValidateToken(r)
+	switch statusCode {
+	case 400:
+		SendStatus.BadRequest(w)
+		return
+	case 401:
+		SendStatus.InvalidCredentials(w)
+		return
+	case 403:
+		SendStatus.Forbidden(w)
+		return
+	case 500:
+		SendStatus.InternalServerError(w)
+		return
+	}
+
+	log.Println("Converting jwtObject to JsonStruct")
+	var token JsonStruct
+	err := json.Unmarshal(jwtObject, &token)
+	if err != nil {
+		SendStatus.InternalServerError(w)
+		log.Println(err.Error())
+		return
+	}
+
+	if token.Admin {
+		log.Println("Getting FID from request")
+		fid := r.URL.Query().Get("fid")
+		if fid == "" {
+			SendStatus.BadRequest(w)
+			return
+		}
+
+		log.Println("Connecting to MongoDB")
+		uri, err := GetMongoUri()
+		FailOnError(err, "MongoUri creation failed")
+		client := ConnectToMongoDB(uri)
+		dbMp3s := client.Database("mp3s")
+
+		log.Println("Creating GridFs bucket")
+		fsMp3, err := gridfs.NewBucket(dbMp3s, options.GridFSBucket())
+		FailOnError(err, "fsMp3s creation failed")
+
+		log.Println("Getting ID from Hex string", fid)
+		id, err := primitive.ObjectIDFromHex(fid)
+		FailOnError(err, "Getting ID from fid failed")
+
+		log.Println("Downloading file from MongoDB")
+		fileStream, err := fsMp3.OpenDownloadStream(id)
+		FailOnError(err, "Download from MongoDB failed")
+		defer fileStream.Close()
+
+		_, err = io.Copy(w, fileStream)
+		FailOnError(err, "Copying file to w failed")
+	}
 }
 
 func main() {
