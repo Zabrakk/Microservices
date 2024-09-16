@@ -6,4 +6,4 @@ data:
   AUTH_SVC_ADDRESS: "auth:5000"
   MONGODB_HOST: mongodb
   MONGODB_PORT: "27017"
-  PYTHONUNBUFFERED: "1"
+  VIDEO_QUEUE: "video"
