@@ -9,15 +9,26 @@ import (
 	"net/http"
 	"os"
 	"strings"
-)
 
+	amqp "github.com/rabbitmq/amqp091-go"
+	"go.mongodb.org/mongo-driver/mongo/gridfs"
+	"go.mongodb.org/mongo-driver/mongo/options"
+)
 type JsonStruct struct {
 	Username	string		`json:"username"`
 	Exp			float64		`json:"exp"`
 	Admin		bool		`json:"admin"`
 }
 
+type RabbitMQMessage struct {
+	VideoFid	string		`json:"video_fid"`
+	Mp3Fid		string		`json:"mp3_fid"`
+	Username	string		`json:"username"`
+}
+
 var servicePort string = "8080"
+// var dbVideos, dbMp3s *mongo.Database
+// var fsVideos, fsMp3s *gridfs.Bucket
 
 // Returns the URL to the Authorization service's /login route
 var GetAuthServiceUrl = func () (url string) {
@@ -203,6 +214,50 @@ func Upload(w http.ResponseWriter, r *http.Request) {
 		defer file.Close()
 		fileName := strings.Split(header.Filename, ".")
 		fmt.Println("Filename was ", fileName[0])
+
+		log.Println("Connecting to MongoDB")
+		uri, err := GetMongoUri()
+		FailOnError(err, "MongoUri creation failed")
+		client := ConnectToMongoDB(uri)
+		dbVideos := client.Database("videos")
+
+		log.Println("Creating GridFs buckets")
+		fsVideos, err := gridfs.NewBucket(dbVideos, options.GridFSBucket())
+		FailOnError(err, "fsVideo creation failed")
+
+		log.Println("Uploading file to MongoDB")
+		fid, err := fsVideos.UploadFromStream(fileName[0], file)
+		FailOnError(err, "Video upload to MongoDB failed")
+
+		log.Println("Connecting to RabbitMQ")
+		connection := ConnectToRabbitMQ()
+		defer connection.Close()
+		channel := OpenChannel(connection)
+		defer channel.Close()
+
+		log.Println("Creating RabbitMQMessage JSON")
+		rabbitMqMessage := RabbitMQMessage{
+			VideoFid: fid.Hex(),
+			Mp3Fid: "",
+			Username: token.Username,
+		}
+		body, err := json.Marshal(rabbitMqMessage)
+		FailOnError(err, "Creating RabbitMQMessage JSON failed")
+
+		log.Println("Publishing JSON with FID to Mp3 queue")
+		err = channel.Publish(
+			"",						// Exchange
+			os.Getenv("VIDEO_QUEUE"),// Routing key
+			false,					// Mandatory
+			false,					// Immediate
+			amqp.Publishing{		// Msg
+				ContentType: "application/json",
+				Body: body,
+			},
+		)
+		FailOnError(err, "RabbitMQ message publishing failed")
+
+		log.Println("File uploaded with fid:", fid.Hex())
 	}
 }
 
