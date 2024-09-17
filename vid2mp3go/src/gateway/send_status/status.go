@@ -46,3 +46,30 @@ func InternalServerError(w http.ResponseWriter) {
 	w.WriteHeader(http.StatusInternalServerError)
 	fmt.Fprintf(w, "Internal server error.")
 }
+
+// Sends out the appropriate status and message based on given statusCode.
+// Returns false if one of the known error responses was sent.
+func BasedOnValue(w http.ResponseWriter, statusCode int) (ok bool) {
+	switch statusCode {
+	case 400:
+		BadRequest(w)
+		return false
+	case 401:
+		InvalidCredentials(w)
+		return false
+	case 403:
+		Forbidden(w)
+		return false
+	case 405:
+		MethodNotAllowed(w)
+		return false
+	case 409:
+		Conflict(w)
+		return false
+	case 500:
+		InternalServerError(w)
+		return false
+	default:
+		return true
+	}
+}

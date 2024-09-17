@@ -190,18 +190,7 @@ func Upload(w http.ResponseWriter, r *http.Request) {
 	if !IsPostRequest(w, r) { return }
 
 	jwtObject, statusCode := ValidateToken(r)
-	switch statusCode {
-	case 400:
-		SendStatus.BadRequest(w)
-		return
-	case 401:
-		SendStatus.InvalidCredentials(w)
-		return
-	case 403:
-		SendStatus.Forbidden(w)
-		return
-	case 500:
-		SendStatus.InternalServerError(w)
+	if !SendStatus.BasedOnValue(w, statusCode) {
 		return
 	}
 
@@ -277,18 +266,7 @@ func Download(w http.ResponseWriter, r *http.Request) {
 	if !IsGetRequest(w, r) { return }
 
 	jwtObject, statusCode := ValidateToken(r)
-	switch statusCode {
-	case 400:
-		SendStatus.BadRequest(w)
-		return
-	case 401:
-		SendStatus.InvalidCredentials(w)
-		return
-	case 403:
-		SendStatus.Forbidden(w)
-		return
-	case 500:
-		SendStatus.InternalServerError(w)
+	if !SendStatus.BasedOnValue(w, statusCode) {
 		return
 	}
 

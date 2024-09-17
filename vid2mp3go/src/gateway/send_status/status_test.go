@@ -54,3 +54,37 @@ func TestConflict(t *testing.T) {
 func TestInternalServerError(t *testing.T) {
 	CheckStatus(InternalServerError, 500, t)
 }
+
+func TestBasedOnValue(t *testing.T) {
+	w := MockResponseWriter{}
+	tests := []struct{
+		statusCode	int
+	}{
+		{ statusCode: 200 },
+		{ statusCode: 400 },
+		{ statusCode: 401 },
+		{ statusCode: 403 },
+		{ statusCode: 405 },
+		{ statusCode: 409 },
+		{ statusCode: 500 },
+	}
+	for _, tt := range tests {
+		ok := BasedOnValue(&w, tt.statusCode)
+		if tt.statusCode != 200 {
+			if w.Code != tt.statusCode {
+				t.Fatal("Status code was incorrect", w.Code)
+			}
+			if ok {
+				t.Fatal("ok should have been false")
+			}
+		} else {
+			if w.Code != 0 {
+				t.Fatal("Status code was incorrect", w.Code)
+			}
+			if !ok {
+				t.Fatal("ok should have been true")
+			}
+		}
+
+	}
+}
