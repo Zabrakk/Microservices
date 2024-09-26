@@ -1,8 +1,5 @@
 ### Set env variables
-Use this command
-```bash
-export $(cat .env | xargs)
-```
+Export from .env
 
 ### Run the app
 Use this command
