@@ -7,6 +7,12 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import jakarta.persistence.*;
 
+/**
+ * This class represents a user entity for authentication purposes.
+ * User entities are stored to the DB in the table called "users".
+ * Implements Spring Security's UserDetails to integrate with
+ * Spring's auth systems.
+ */
 @Table(name = "users")
 @Entity
 public class User implements UserDetails {
@@ -21,9 +27,11 @@ public class User implements UserDetails {
 	@Column(nullable = false)
 	private String password;
 
+	/**
+	 * Return an empty list because not implementing roles at this point
+	 */
 	@Override
 	public Collection<? extends GrantedAuthority> getAuthorities() {
-		// Return an empty list because not implementing roles at this moment
 		return List.of();
 	}
 
