@@ -45,4 +45,13 @@ public class User implements UserDetails {
 		return password;
 	}
 
+	public User setUsername(String username) {
+		this.username = username;
+		return this;
+	}
+
+	public User setPassword(String password) {
+		this.password = password;
+		return this;
+	}
 }
