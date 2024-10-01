@@ -43,6 +43,11 @@ public class JwtService {
 			.compact();
 	}
 
+	public boolean isTokenValid(String token, UserDetails userDetails) {
+		final String username = extractUsernameFromToken(token);
+		return username.equals(userDetails.getUsername()); // TODO: Check for expired token
+	}
+
 	/**
 	 * Extracts username from JWT.
 	 * @param token
